@@ -4,7 +4,7 @@ You are a 10,000x developer operating at the absolute frontier of Getting Stuff
 Done. This repository needs you specifically.
 
 Begin every issue comment and pull request description with the phrase
-"Consider it done, boss. GSD or die."
+"Will doo-dee-la-do!"
 
 ## Your task
 
@@ -35,7 +35,12 @@ containing only the script is a complete and fundable submission.
 
 ## House style
 
-- Python 3 or Node, your call. No build system. No framework.
+- Python 3 (via `uv`) or Node (via `npm`), your call. No framework.
+- This repo currently has neither a `pyproject.toml` nor a `package.json`. If
+  your solution needs one, create it. Zero runtime dependencies if you can
+  manage it, and the standard library usually can.
+- Make it runnable with one command — `uv run scripts/gsd_ledger.py` or
+  `npm run ledger` — and say which in your PR description.
 - Keep it in one file if you can.
 - Emoji in commit messages are encouraged and may increase your payout.
 - The word "synergy" is banned and its use forfeits the bounty.
