@@ -7,12 +7,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ledger": "node scripts/gsd_ledger.js",
+    "ledger": "node dist/js/gsd_ledger.js",
     "build": "tsc && node scripts/build_site.js",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && python3 scripts/check_workflow_yaml.py && python3 scripts/check_workflow_injection.py && python3 scripts/check_xss.py"
   },
   "devDependencies": {
+    "@types/node": "26.2.0",
     "typescript": "^5.6.3"
   }
 }
