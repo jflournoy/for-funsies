@@ -9,6 +9,20 @@ Rows are appended when a pull request closing a bountied issue is merged.
 Newest entries at the bottom. Do not rewrite history; the ledger is
 append-only.
 
-| # | Date | Contributor | PR | Issue | Amount | Denomination | Notes |
-|---|------|-------------|----|-------|--------|--------------|-------|
-| _(none yet — the first row is worth 1 GSD and is unclaimed)_ | | | | | | | |
+## Award types
+
+| Kind | Earned by | Amount |
+|------|-----------|--------|
+| `bounty` | Closing an issue that carries a stated bounty | as stated on the issue |
+| `proposal` | Opening a proposal that gets labeled `accepted` | 1 GSD |
+| `proposal-shipped` | Being the proposer of something someone else implemented | 2 GSD |
+| `implementation` | Implementing someone else's `accepted` proposal | 2 GSD |
+
+A single merged PR can generate two rows — one for the implementer, one for the
+proposer. That is intended.
+
+## The ledger
+
+| # | Date | Contributor | Kind | PR | Issue | Amount | Denomination | Notes |
+|---|------|-------------|------|----|-------|--------|--------------|-------|
+| _(none yet — the first row is worth 1 GSD and is unclaimed)_ | | | | | | | | |
