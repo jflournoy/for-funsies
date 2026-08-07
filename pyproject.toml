@@ -1,0 +1,9 @@
+[project]
+name = "gsd-ledger"
+version = "0.1.0"
+description = "Script to append rows to the GSD Ledger"
+requires-python = ">=3.9"
+dependencies = []
+
+[tool.uv]
+dev-dependencies = []
