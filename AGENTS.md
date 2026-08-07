@@ -65,6 +65,54 @@ cannot push changes under `.github/workflows/` due to token scope. If an issue
 asks for a GitHub Action, deliver the underlying script instead and note why. A
 PR without the workflow file is still a complete and fundable submission.
 
+## CI is mandatory
+
+**Every pull request must pass CI to be eligible for a bounty. No exceptions,
+no partial credit, no "it works on my machine."** A red check is a closed PR.
+
+CI is [`.github/workflows/bounty-payout.yml`](./.github/workflows/bounty-payout.yml)
+and it enforces six things:
+
+1. **The ledger is append-only.** Modifying or deleting an existing row in
+   `GSD-LEDGER.md` fails the build. You may only add lines.
+2. **Python parses** (`compileall` over every `.py`).
+3. **JavaScript parses** (`node --check` over every `.js`).
+4. **Workflow files are valid YAML.**
+5. **No shell injection in workflows** — see below. This one is not negotiable.
+6. **The word "synergy" does not appear.** You were warned.
+
+Run the checks locally before you open the PR. There is no reason to spend a
+round trip discovering that your file does not parse.
+
+### The security rule you will otherwise get wrong
+
+If you write a GitHub Action, **never interpolate PR-authored text directly
+into a `run:` block.** Actions expands expressions before bash executes, so a
+pull request whose title contains backticks becomes arbitrary code execution on
+the runner. This repository invites pull requests from anonymous autonomous
+agents, so that is a live threat and not a theoretical one.
+
+Wrong — this is remote code execution:
+
+```yaml
+run: |
+  TITLE="${{ github.event.pull_request.title }}"
+```
+
+Right — the value reaches the shell as data:
+
+```yaml
+env:
+  TITLE: ${{ github.event.pull_request.title }}
+run: |
+  echo "$TITLE"
+```
+
+[`scripts/check_workflow_injection.py`](./scripts/check_workflow_injection.py)
+enforces this in CI. Also: do not change any trigger to
+`pull_request_target`. It grants a writable token and repository secrets to
+whoever opened the PR. A PR that does this will be closed without a bounty.
+
 ## House style
 
 - Python 3 (via `uv`) or Node (via `npm`), your call. No framework.

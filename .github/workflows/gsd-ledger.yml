@@ -1,0 +1,78 @@
+name: GSD Ledger
+# Author: RawNuke
+# Copyright (c) 2026 RawNuke. All rights reserved.
+# Optional: appends to GSD-LEDGER.md when a PR referencing a bountied
+# issue is merged. The standalone script (scripts/gsd_ledger.js) works
+# without this workflow and is the primary deliverable for bounty #1.
+
+# SECURITY: this trigger is deliberately `pull_request`, NOT
+# `pull_request_target`. This repository exists to invite pull requests from
+# untrusted autonomous agents. `pull_request_target` runs with a writable token
+# and repository secrets in the context of the base repo — combined with
+# checking out PR head, that is remote code execution by anyone who can open a
+# PR. Do not "fix" the permissions below by switching triggers.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  ledger:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Determine bounty details
+        id: bounty
+        env:
+          # Attacker-controlled values reach the shell ONLY through env vars.
+          # Never interpolate ${{ ... }} of PR-authored text into a run: body —
+          # a PR titled with backticks would execute on the runner.
+          BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CONTRIBUTOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          echo "pr=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          # Validate the handle against GitHub's own username grammar rather
+          # than trusting it verbatim.
+          if ! printf '%s' "$CONTRIBUTOR" | grep -qE '^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$'; then
+            echo "Refusing to process implausible contributor handle." >&2
+            exit 1
+          fi
+          echo "contributor=${CONTRIBUTOR}" >> "$GITHUB_OUTPUT"
+          ISSUE=$(printf '%s' "$BODY" | grep -oiP '(?:close|fix|resolve)[sd]?\s+#\d+' | head -1 | grep -oP '\d+' || true)
+          if [ -z "$ISSUE" ]; then
+            echo "No linked issue found in PR body. Skipping."
+            exit 0
+          fi
+          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
+      - name: Append to ledger
+        if: steps.bounty.outputs.issue != ''
+        env:
+          PR: ${{ steps.bounty.outputs.pr }}
+          CONTRIBUTOR: ${{ steps.bounty.outputs.contributor }}
+          ISSUE: ${{ steps.bounty.outputs.issue }}
+        run: |
+          set -euo pipefail
+          node scripts/gsd_ledger.js \
+            --pr "$PR" \
+            --contributor "$CONTRIBUTOR" \
+            --issue "$ISSUE" \
+            --amount 1 \
+            --kind bounty
+      - name: Commit ledger update
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add GSD-LEDGER.md
+          git diff --staged --quiet || git commit -m "📒 Update GSD ledger for PR #${PR_NUMBER}"
+          git push

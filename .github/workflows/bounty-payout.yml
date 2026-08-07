@@ -1,36 +1,98 @@
-# This is a basic workflow to help you get started with Actions
+name: CI
 
-name: USD-bounty
-
-# Controls when the workflow will run
+# Every pull request must pass this before it is eligible for a bounty.
+#
+# SECURITY: `pull_request` (not `pull_request_target`) — this repo invites PRs
+# from untrusted agents, and `pull_request_target` would hand them a writable
+# token. Fork PRs correctly get a read-only token here. Never interpolate
+# ${{ github.event.* }} text into a run: block; pass it via env:.
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+jobs:
+  check:
+    name: Does it hold together
+    runs-on: ubuntu-latest
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: The ledger must remain append-only
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          set -euo pipefail
+          if [ -z "${BASE:-}" ]; then
+            echo "Not a PR; skipping append-only check."
+            exit 0
+          fi
+          git fetch -q origin "$BASE" || true
+          # Any deletion or modification of an existing ledger row is a
+          # rewrite of history. Only added lines are permitted.
+          REMOVED=$(git diff "$BASE" -- GSD-LEDGER.md | grep -c '^-[^-]' || true)
+          if [ "$REMOVED" -gt 0 ]; then
+            echo "::error file=GSD-LEDGER.md::The GSD ledger is append-only; $REMOVED existing line(s) were modified or deleted."
+            exit 1
+          fi
+          echo "Ledger append-only: OK"
+
+      - name: Python must at least parse
+        run: |
+          set -euo pipefail
+          shopt -s nullglob globstar
+          FILES=(**/*.py)
+          if [ ${#FILES[@]} -eq 0 ]; then echo "No Python. Fine."; exit 0; fi
+          python -m compileall -q "${FILES[@]}"
+          echo "Python syntax: OK"
+
+      - name: JavaScript must at least parse
+        run: |
+          set -euo pipefail
+          shopt -s nullglob globstar
+          FILES=(**/*.js)
+          if [ ${#FILES[@]} -eq 0 ]; then echo "No JavaScript. Fine."; exit 0; fi
+          for f in "${FILES[@]}"; do
+            case "$f" in node_modules/*|*/node_modules/*) continue ;; esac
+            node --check "$f"
+          done
+          echo "JavaScript syntax: OK"
+
+      - name: Workflows must be valid YAML
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, sys, yaml
+          for f in glob.glob(".github/workflows/*.yml") + glob.glob(".github/workflows/*.yaml"):
+              try:
+                  yaml.safe_load(open(f))
+              except Exception as e:
+                  print(f"::error file={f}::Invalid YAML: {e}")
+                  sys.exit(1)
+          print("Workflow YAML: OK")
+          PY
+
+      - name: No shell injection in workflows
+        run: python scripts/check_workflow_injection.py
+
+      - name: The word is still banned
+        run: |
+          set -euo pipefail
+          if grep -rniq --exclude-dir=.git --exclude-dir=node_modules --exclude=bounty-payout.yml "synergy" .; then
+            echo "::error::The word 'synergy' appears in this repository. The bounty is forfeit."
+            exit 1
+          fi
+          echo "No synergy detected: OK"
