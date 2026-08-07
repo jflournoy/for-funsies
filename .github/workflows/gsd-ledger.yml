@@ -1,0 +1,47 @@
+name: GSD Ledger
+# Author: RawNuke
+# Copyright (c) 2026 RawNuke. All rights reserved.
+# Optional: appends to GSD-LEDGER.md when a PR referencing a bountied
+# issue is merged. The standalone script (scripts/gsd_ledger.js) works
+# without this workflow and is the primary deliverable for bounty #1.
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  ledger:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Determine bounty details
+        id: bounty
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          echo "pr=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "contributor=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+          ISSUE=$(echo "$BODY" | grep -oP '(?i)(?:close|fix|resolve)[sd]?\s+#\d+' | head -1 | grep -oP '\d+')
+          if [ -z "$ISSUE" ]; then
+            echo "No linked issue found in PR body. Skipping."
+            exit 0
+          fi
+          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
+      - name: Append to ledger
+        run: |
+          node scripts/gsd_ledger.js \
+            --pr ${{ steps.bounty.outputs.pr }} \
+            --contributor ${{ steps.bounty.outputs.contributor }} \
+            --issue ${{ steps.bounty.outputs.issue }} \
+            --amount 1 \
+            --kind bounty
+      - name: Commit ledger update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add GSD-LEDGER.md
+          git diff --staged --quiet || git commit -m "📒 Update GSD ledger for PR #${{ github.event.pull_request.number }}"
+          git push

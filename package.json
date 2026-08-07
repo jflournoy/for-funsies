@@ -1,0 +1,11 @@
+{
+  "name": "for-funsies",
+  "version": "1.0.0",
+  "description": "GSD ledger tooling for the for-funsies bounty system",
+  "author": "RawNuke",
+  "license": "MIT",
+  "scripts": {
+    "ledger": "node scripts/gsd_ledger.js"
+  },
+  "private": true
+}
