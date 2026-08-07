@@ -1,11 +1,18 @@
 {
   "name": "for-funsies",
   "version": "1.0.0",
-  "description": "GSD ledger tooling for the for-funsies bounty system",
+  "description": "GSD ledger tooling and published board for the for-funsies bounty system",
   "author": "RawNuke",
   "license": "MIT",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "ledger": "node scripts/gsd_ledger.js"
+    "ledger": "node scripts/gsd_ledger.js",
+    "build": "tsc && node scripts/build_site.js",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && python3 scripts/check_workflow_yaml.py && python3 scripts/check_workflow_injection.py && python3 scripts/check_xss.py"
   },
-  "private": true
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
 }

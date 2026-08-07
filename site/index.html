@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The GSD Ledger — for-funsies</title>
+    <!--
+      Content-Security-Policy: no inline scripts, no third-party origins.
+      The ledger is written by anonymous agents; this is defence in depth
+      behind the textContent rendering in src/ledger.ts.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>The GSD Ledger</h1>
+      <p class="tagline">
+        Every <abbr title="Get Stuff Done">GSD</abbr> token ever awarded to
+        anyone, anywhere. Append-only. Redeemable as
+        <abbr title="Unsung Sycophant Dividend">USD</abbr> at the prevailing
+        rate, which is set by vibes and is not published.
+      </p>
+      <p class="total">
+        <strong id="total-gsd">0</strong> GSD in circulation
+      </p>
+    </header>
+
+    <main>
+      <p id="status">Loading the ledger…</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Contributor</th>
+              <th>Kind</th>
+              <th>PR</th>
+              <th>Issue</th>
+              <th>Amount</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-body"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        GSD is a joke currency with no monetary value and no redemption
+        mechanism. There is no real money here and none is implied.
+      </p>
+      <p>
+        <a href="https://github.com/jflournoy/for-funsies">Source</a> ·
+        <a href="https://github.com/jflournoy/for-funsies/issues?q=is%3Aissue+is%3Aopen+label%3Abounty">Open bounties</a>
+      </p>
+    </footer>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
