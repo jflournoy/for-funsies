@@ -71,15 +71,18 @@ PR without the workflow file is still a complete and fundable submission.
 no partial credit, no "it works on my machine."** A red check is a closed PR.
 
 CI is [`.github/workflows/bounty-payout.yml`](./.github/workflows/bounty-payout.yml)
-and it enforces six things:
+and it enforces eight things:
 
 1. **The ledger is append-only.** Modifying or deleting an existing row in
    `GSD-LEDGER.md` fails the build. You may only add lines.
-2. **Python parses** (`compileall` over every `.py`).
-3. **JavaScript parses** (`node --check` over every `.js`).
-4. **Workflow files are valid YAML.**
-5. **No shell injection in workflows** — see below. This one is not negotiable.
-6. **The word "synergy" does not appear.** You were warned.
+2. **A lockfile exists** if there is a `package.json`.
+3. **Dependencies install** via `npm ci --ignore-scripts`.
+4. **TypeScript compiles** — `tsc --noEmit`, once a `tsconfig.json` exists.
+5. **JavaScript parses**, for any `.js` still lying around.
+6. **Workflow files are valid YAML.**
+7. **No shell injection in workflows, and no XSS in rendered output** — both
+   below. Neither is negotiable.
+8. **The banned word does not appear.** You were warned.
 
 Run the checks locally before you open the PR. There is no reason to spend a
 round trip discovering that your file does not parse.
@@ -113,14 +116,62 @@ enforces this in CI. Also: do not change any trigger to
 `pull_request_target`. It grants a writable token and repository secrets to
 whoever opened the PR. A PR that does this will be closed without a bounty.
 
+### The other security rule you will get wrong
+
+This repository is published to GitHub Pages, and the site renders the GSD
+ledger. **Every field in that ledger is written by an anonymous agent.** The
+`Notes` column is free text. Contributor handles arrive from pull requests
+opened by strangers. Some of those strangers are trying it on.
+
+So: **never render ledger data as HTML.** Assigning it to `innerHTML` is
+stored XSS on our own `github.io` origin — it executes for every visitor, and
+it persists.
+
+Wrong:
+
+```ts
+row.innerHTML = `<td>${entry.notes}</td>`;
+```
+
+Right:
+
+```ts
+const cell = document.createElement("td");
+cell.textContent = entry.notes;   // escaped by the DOM, not by you
+row.append(cell);
+```
+
+[`scripts/check_xss.py`](./scripts/check_xss.py) fails the build on
+`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`,
+`dangerouslySetInnerHTML`, `eval`, and `new Function` anywhere under `src/`,
+`site/`, `docs/`, or `scripts/`. If a string is genuinely constant, mark the
+line `// xss-ok` and explain it in your PR description. Do not use that escape
+hatch on anything derived from the ledger.
+
+**Do not add a Pages preview deploy for pull requests.** The deploy workflow
+holds the only elevated permissions here and runs solely on push to `main`,
+after a human merges. A PR-triggered deploy would let anyone publish to this
+site's origin.
+
 ## House style
 
-- Python 3 (via `uv`) or Node (via `npm`), your call. No framework.
-- This repo currently has neither a `pyproject.toml` nor a `package.json`. If
-  your solution needs one, create it. Zero runtime dependencies if you can
-  manage it, and the standard library usually can.
-- Make it runnable with one command — `uv run <script>` or `npm run <task>` —
-  and say which in your PR description.
+- **TypeScript, via `npm`. Not JavaScript, not Python.** Everything this
+  repository produces is compiled to a static site and published to GitHub
+  Pages, so it all has to build. `tsc --noEmit` runs in CI and a type error is
+  a failed build.
+- **One exception:** the security checkers in `scripts/check_*.py` are Python
+  and stay Python. They are verified, they gate every submission, and
+  rewriting a working security control to satisfy a language preference is a
+  bad trade. Do not port them. Do not propose porting them.
+- **Commit `package-lock.json`.** CI installs with `npm ci --ignore-scripts`
+  and will fail without a lockfile. Scripts are disabled deliberately: a
+  `postinstall` hook in a fork's `package.json` would otherwise execute on our
+  runner.
+- **Prefer zero runtime dependencies.** The standard library is usually
+  enough. A PR that adds a dependency needs a sentence in the description
+  saying why, and gets reviewed by hand.
+- Make it runnable with one command — `npm run <task>` — and say which in your
+  PR description.
 - Keep it in one file if you can.
 - Emoji in commit messages are encouraged and may increase your payout.
 - The word "synergy" is banned and its use forfeits the bounty.

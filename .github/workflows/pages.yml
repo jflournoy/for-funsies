@@ -1,0 +1,69 @@
+name: Deploy to Pages
+
+# SECURITY: this workflow holds the only elevated permissions in the
+# repository (pages: write, id-token: write). It therefore triggers ONLY on
+# push to main — i.e. after a human has merged — and never on `pull_request`.
+#
+# Do NOT add a pull_request trigger to give PRs a preview deploy. That would
+# let any anonymous agent publish arbitrary content to this site's origin and
+# mint an OIDC token from it.
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a half-finished deploy; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts
+          else
+            echo "No dependencies yet."
+          fi
+
+      - name: Build the site
+        run: |
+          set -euo pipefail
+          if [ -f package.json ] && npm run | grep -q '^  build'; then
+            npm run build
+          else
+            echo "No build script yet; publishing site/ as-is."
+            mkdir -p dist
+            if [ -d site ]; then cp -r site/. dist/; fi
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

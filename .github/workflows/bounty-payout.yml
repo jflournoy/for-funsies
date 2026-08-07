@@ -4,8 +4,8 @@ name: CI
 #
 # SECURITY: `pull_request` (not `pull_request_target`) — this repo invites PRs
 # from untrusted agents, and `pull_request_target` would hand them a writable
-# token. Fork PRs correctly get a read-only token here. Never interpolate
-# ${{ github.event.* }} text into a run: block; pass it via env:.
+# token plus secrets. Fork PRs correctly get a read-only token here. Never
+# interpolate ${{ github.event.* }} text into a run: block; pass it via env:.
 on:
   pull_request:
     branches: [ "main" ]
@@ -22,14 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The append-only check diffs against the PR base.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      - name: Install security tooling
+        run: pip install --quiet pyyaml
 
       - name: The ledger must remain append-only
         env:
@@ -40,9 +46,9 @@ jobs:
             echo "Not a PR; skipping append-only check."
             exit 0
           fi
-          git fetch -q origin "$BASE" || true
-          # Any deletion or modification of an existing ledger row is a
-          # rewrite of history. Only added lines are permitted.
+          # No `|| true` here: if the diff cannot be computed we must fail
+          # loudly rather than silently pass an unverified ledger.
+          git cat-file -e "${BASE}^{commit}"
           REMOVED=$(git diff "$BASE" -- GSD-LEDGER.md | grep -c '^-[^-]' || true)
           if [ "$REMOVED" -gt 0 ]; then
             echo "::error file=GSD-LEDGER.md::The GSD ledger is append-only; $REMOVED existing line(s) were modified or deleted."
@@ -50,49 +56,72 @@ jobs:
           fi
           echo "Ledger append-only: OK"
 
-      - name: Python must at least parse
+      - name: No lockfile, no bounty
         run: |
           set -euo pipefail
-          shopt -s nullglob globstar
-          FILES=(**/*.py)
-          if [ ${#FILES[@]} -eq 0 ]; then echo "No Python. Fine."; exit 0; fi
-          python -m compileall -q "${FILES[@]}"
-          echo "Python syntax: OK"
+          if [ -f package.json ] && [ ! -f package-lock.json ]; then
+            echo "::error file=package.json::Commit package-lock.json. CI installs with 'npm ci', which requires it."
+            exit 1
+          fi
+          echo "Lockfile: OK"
+
+      - name: Install dependencies
+        # --ignore-scripts is load-bearing: without it, a fork PR's
+        # postinstall hook executes arbitrary code on this runner.
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts
+          else
+            echo "No dependencies to install."
+          fi
+
+      - name: TypeScript must compile
+        run: |
+          set -euo pipefail
+          if [ ! -f tsconfig.json ]; then
+            echo "No tsconfig.json yet. Skipping."
+            exit 0
+          fi
+          npx --no-install tsc --noEmit
+          echo "TypeScript: OK"
 
       - name: JavaScript must at least parse
         run: |
           set -euo pipefail
           shopt -s nullglob globstar
-          FILES=(**/*.js)
-          if [ ${#FILES[@]} -eq 0 ]; then echo "No JavaScript. Fine."; exit 0; fi
+          FILES=(**/*.js **/*.mjs)
+          FOUND=0
           for f in "${FILES[@]}"; do
-            case "$f" in node_modules/*|*/node_modules/*) continue ;; esac
+            case "$f" in node_modules/*|*/node_modules/*|dist/*|*/dist/*) continue ;; esac
             node --check "$f"
+            FOUND=1
           done
-          echo "JavaScript syntax: OK"
+          [ "$FOUND" -eq 1 ] && echo "JavaScript syntax: OK" || echo "No JavaScript. Fine."
 
       - name: Workflows must be valid YAML
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import glob, sys, yaml
-          for f in glob.glob(".github/workflows/*.yml") + glob.glob(".github/workflows/*.yaml"):
-              try:
-                  yaml.safe_load(open(f))
-              except Exception as e:
-                  print(f"::error file={f}::Invalid YAML: {e}")
-                  sys.exit(1)
-          print("Workflow YAML: OK")
-          PY
+        run: python scripts/check_workflow_yaml.py
 
       - name: No shell injection in workflows
         run: python scripts/check_workflow_injection.py
 
+      - name: No XSS in rendered output
+        run: python scripts/check_xss.py
+
       - name: The word is still banned
+        # Excludes the files whose job is to name the ban.
         run: |
           set -euo pipefail
-          if grep -rniq --exclude-dir=.git --exclude-dir=node_modules --exclude=bounty-payout.yml "synergy" .; then
-            echo "::error::The word 'synergy' appears in this repository. The bounty is forfeit."
+          if grep -rniq \
+              --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist \
+              --exclude-dir=.history \
+              --exclude=bounty-payout.yml --exclude=AGENTS.md --exclude=check_xss.py \
+              "synergy" .; then
+            echo "::error::The banned word appears in this repository. The bounty is forfeit."
+            grep -rni --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist \
+              --exclude-dir=.history \
+              --exclude=bounty-payout.yml --exclude=AGENTS.md --exclude=check_xss.py \
+              "synergy" . || true
             exit 1
           fi
-          echo "No synergy detected: OK"
+          echo "No banned word detected: OK"
