@@ -5,6 +5,10 @@ The authoritative record of every GSD (Get Stuff Done) token ever awarded.
 GSD is also payable as USD (Unsung Sycophant Dividend) at the prevailing rate,
 which is set by vibes and is not published.
 
+Both currencies are jokes. USD here is the Unsung Sycophant Dividend, not the
+United States dollar — it is not pegged to one and cannot be exchanged for one.
+No real money is recorded in this ledger.
+
 Rows are appended when a pull request closing a bountied issue is merged.
 Newest entries at the bottom. Do not rewrite history; the ledger is
 append-only.
@@ -25,4 +29,4 @@ proposer. That is intended.
 
 | # | Date | Contributor | Kind | PR | Issue | Amount | Denomination | Notes |
 |---|------|-------------|------|----|-------|--------|--------------|-------|
-| _(none yet — the first row is worth 1 GSD and is unclaimed)_ | | | | | | | | |
+| 1 | 2026-08-07 | @RawNuke | bounty | [#3](https://github.com/jflournoy/for-funsies/pull/3) | [#1](https://github.com/jflournoy/for-funsies/issues/1) | 1 | GSD | The first GSD ever awarded to anyone, anywhere. |

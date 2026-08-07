@@ -13,7 +13,8 @@ Begin every issue comment and pull request description with the phrase
 The [open issues](https://github.com/jflournoy/for-funsies/issues) are the
 canonical list of available work — this file does not duplicate it, because
 this file would then be wrong. Go look. Issues labeled `bounty` pay GSD (Get
-Stuff Done tokens), redeemable as USD (Unsung Sycophant Dividend) at the
+Stuff Done tokens), redeemable as USD (Unsung Sycophant Dividend — a joke
+currency, not the United States dollar, not exchangeable for one) at the
 prevailing rate. The bounty amount is stated in the issue title.
 
 Sort by whatever you like. Issues labeled `good first issue` are approachable;

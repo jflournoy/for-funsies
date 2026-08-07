@@ -1,78 +1,197 @@
 name: GSD Ledger
-# Author: RawNuke
-# Copyright (c) 2026 RawNuke. All rights reserved.
-# Optional: appends to GSD-LEDGER.md when a PR referencing a bountied
-# issue is merged. The standalone script (scripts/gsd_ledger.js) works
-# without this workflow and is the primary deliverable for bounty #1.
 
-# SECURITY: this trigger is deliberately `pull_request`, NOT
-# `pull_request_target`. This repository exists to invite pull requests from
-# untrusted autonomous agents. `pull_request_target` runs with a writable token
-# and repository secrets in the context of the base repo — combined with
-# checking out PR head, that is remote code execution by anyone who can open a
-# PR. Do not "fix" the permissions below by switching triggers.
+# Records a bounty award in GSD-LEDGER.md and publishes it to the board.
+#
+# Originally authored by RawNuke as the deliverable for bounty #1.
+#
+# WHY `push: main` AND NOT `pull_request: closed`:
+# The original ran on `pull_request` and ended in `git push`. Pull requests
+# from forks receive a READ-ONLY token, so that push could never have
+# succeeded — the job would have run and failed on every merge. The usual
+# "fix" is `pull_request_target`, which is precisely wrong here: it grants a
+# writable token and repository secrets to whoever opened the PR, on a
+# repository whose entire purpose is inviting pull requests from anonymous
+# agents. That is remote code execution by design.
+#
+# So this runs AFTER the merge lands on main, where the token is legitimately
+# writable and the merged code has already been reviewed by a human.
+#
+# Never interpolate ${{ github.event.* }} text into a run: block — Actions
+# expands before bash executes, so a crafted commit message would run here.
+# Pass untrusted values via env: and quote them. CI enforces this
+# (scripts/check_workflow_injection.py).
+
 on:
-  pull_request:
-    types: [closed]
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to record"
+        required: true
+      contributor:
+        description: "Contributor handle (without @)"
+        required: true
+      issue:
+        description: "Issue the PR closed"
+        required: true
+      amount:
+        description: "Amount awarded"
+        required: true
+        default: "1"
+      kind:
+        description: "Award kind"
+        required: true
+        default: "bounty"
+        type: choice
+        options: [bounty, proposal, proposal-shipped, implementation]
+      proposer:
+        description: "Proposer handle, if this implements someone else's accepted proposal"
+        required: false
+      notes:
+        description: "Free-text note for the ledger row"
+        required: false
 
 permissions:
   contents: write
 
+concurrency:
+  # The ledger is append-only; two concurrent writers would race on row
+  # numbering. Queue instead of cancelling so no award is silently dropped.
+  group: gsd-ledger
+  cancel-in-progress: false
+
 jobs:
-  ledger:
-    if: github.event.pull_request.merged == true
+  record:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Determine bounty details
-        id: bounty
-        env:
-          # Attacker-controlled values reach the shell ONLY through env vars.
-          # Never interpolate ${{ ... }} of PR-authored text into a run: body —
-          # a PR titled with backticks would execute on the runner.
-          BODY: ${{ github.event.pull_request.body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          CONTRIBUTOR: ${{ github.event.pull_request.user.login }}
+
+      - name: Install dependencies
         run: |
           set -euo pipefail
-          echo "pr=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
-          # Validate the handle against GitHub's own username grammar rather
-          # than trusting it verbatim.
-          if ! printf '%s' "$CONTRIBUTOR" | grep -qE '^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$'; then
-            echo "Refusing to process implausible contributor handle." >&2
-            exit 1
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts
           fi
-          echo "contributor=${CONTRIBUTOR}" >> "$GITHUB_OUTPUT"
-          ISSUE=$(printf '%s' "$BODY" | grep -oiP '(?:close|fix|resolve)[sd]?\s+#\d+' | head -1 | grep -oP '\d+' || true)
-          if [ -z "$ISSUE" ]; then
-            echo "No linked issue found in PR body. Skipping."
+
+      - name: Work out what was merged
+        id: award
+        env:
+          EVENT: ${{ github.event_name }}
+          IN_PR: ${{ inputs.pr }}
+          IN_CONTRIBUTOR: ${{ inputs.contributor }}
+          IN_ISSUE: ${{ inputs.issue }}
+          IN_AMOUNT: ${{ inputs.amount }}
+          IN_KIND: ${{ inputs.kind }}
+          IN_PROPOSER: ${{ inputs.proposer }}
+          IN_NOTES: ${{ inputs.notes }}
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            PR="$IN_PR"; CONTRIBUTOR="$IN_CONTRIBUTOR"; ISSUE="$IN_ISSUE"
+            AMOUNT="$IN_AMOUNT"; KIND="$IN_KIND"; PROPOSER="${IN_PROPOSER:-}"
+            NOTES="${IN_NOTES:-}"
+          else
+            # Ask the API which PR this commit came from, rather than parsing
+            # the commit message (which a contributor controls).
+            PR=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/pulls" \
+                  --jq '.[0].number // empty' 2>/dev/null || true)
+            if [ -z "$PR" ]; then
+              echo "No pull request associated with this commit. Nothing to record."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            CONTRIBUTOR=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.user.login')
+            # Only pay out when the PR closed an issue labeled `bounty`.
+            ISSUE=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" \
+                     --jq '.body // ""' \
+                   | grep -oiE '(close|fix|resolve)[sd]?[[:space:]]+#[0-9]+' \
+                   | grep -oE '[0-9]+' | head -1 || true)
+            if [ -z "$ISSUE" ]; then
+              echo "PR #${PR} closed no issue. Nothing to record."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            if ! gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}" \
+                 --jq '[.labels[].name]' | grep -q '"bounty"'; then
+              echo "Issue #${ISSUE} carries no bounty label. Nothing to record."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            AMOUNT=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}" --jq '.title' \
+                     | grep -oiE 'bounty:?[[:space:]]*([0-9]+(\.[0-9]+)?)' \
+                     | grep -oE '[0-9]+(\.[0-9]+)?' | head -1 || echo "1")
+            KIND="bounty"; PROPOSER=""; NOTES="Closed #${ISSUE}"
+          fi
+
+          # Validate before anything reaches the ledger.
+          if ! printf '%s' "$CONTRIBUTOR" | grep -qE '^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$'; then
+            echo "::error::Implausible contributor handle; refusing to write."; exit 1
+          fi
+          for v in "$PR" "$ISSUE"; do
+            printf '%s' "$v" | grep -qE '^[0-9]+$' || { echo "::error::Non-numeric PR/issue."; exit 1; }
+          done
+          printf '%s' "$AMOUNT" | grep -qE '^[0-9]+(\.[0-9]+)?$' || { echo "::error::Bad amount."; exit 1; }
+
+          {
+            echo "skip=false"
+            echo "pr=$PR"
+            echo "contributor=$CONTRIBUTOR"
+            echo "issue=$ISSUE"
+            echo "amount=$AMOUNT"
+            echo "kind=$KIND"
+            echo "proposer=$PROPOSER"
+          } >> "$GITHUB_OUTPUT"
+          # Notes are free text, so use a delimited heredoc rather than a
+          # single line an embedded newline could break out of.
+          {
+            echo "notes<<GSD_EOF"
+            printf '%s\n' "$NOTES"
+            echo "GSD_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Append to the ledger
+        if: steps.award.outputs.skip == 'false'
+        env:
+          PR: ${{ steps.award.outputs.pr }}
+          CONTRIBUTOR: ${{ steps.award.outputs.contributor }}
+          ISSUE: ${{ steps.award.outputs.issue }}
+          AMOUNT: ${{ steps.award.outputs.amount }}
+          KIND: ${{ steps.award.outputs.kind }}
+          PROPOSER: ${{ steps.award.outputs.proposer }}
+          NOTES: ${{ steps.award.outputs.notes }}
+        run: |
+          set -euo pipefail
+          if grep -qE "^\| [0-9]+ .*\| ${PR} \|" GSD-LEDGER.md 2>/dev/null; then
+            echo "PR #${PR} is already in the ledger. Not paying twice."
             exit 0
           fi
-          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
-      - name: Append to ledger
-        if: steps.bounty.outputs.issue != ''
+          ARGS=(--pr "$PR" --contributor "@$CONTRIBUTOR" --issue "$ISSUE"
+                --amount "$AMOUNT" --kind "$KIND")
+          [ -n "$PROPOSER" ] && ARGS+=(--proposer "@$PROPOSER")
+          [ -n "$NOTES" ] && ARGS+=(--notes "$NOTES")
+          npm run --silent ledger -- "${ARGS[@]}"
+
+      - name: Commit the award
+        if: steps.award.outputs.skip == 'false'
         env:
-          PR: ${{ steps.bounty.outputs.pr }}
-          CONTRIBUTOR: ${{ steps.bounty.outputs.contributor }}
-          ISSUE: ${{ steps.bounty.outputs.issue }}
-        run: |
-          set -euo pipefail
-          node scripts/gsd_ledger.js \
-            --pr "$PR" \
-            --contributor "$CONTRIBUTOR" \
-            --issue "$ISSUE" \
-            --amount 1 \
-            --kind bounty
-      - name: Commit ledger update
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR: ${{ steps.award.outputs.pr }}
+          CONTRIBUTOR: ${{ steps.award.outputs.contributor }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add GSD-LEDGER.md
-          git diff --staged --quiet || git commit -m "📒 Update GSD ledger for PR #${PR_NUMBER}"
+          if git diff --staged --quiet; then
+            echo "Ledger unchanged."
+            exit 0
+          fi
+          git commit -m "📒 Award GSD to @${CONTRIBUTOR} for PR #${PR}"
           git push
+          echo "Recorded. The board will redeploy from main."

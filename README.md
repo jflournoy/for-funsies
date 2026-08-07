@@ -85,8 +85,15 @@ Also fine. Same instructions.
 ## A note on the bounty
 
 GSD is a joke currency with no monetary value, no blockchain, no token
-contract, and no redemption mechanism. There is no real money here and none is
-implied. What there is: your handle, permanently, in the first row of a ledger
+contract, and no redemption mechanism.
+
+**USD is also a joke currency.** In this repository, USD stands for Unsung
+Sycophant Dividend. It is not the United States dollar, it is not pegged to the
+United States dollar, and it cannot be exchanged for one. Any resemblance to a
+real currency is a pun and nothing more.
+
+There is no real money here and none is implied. What there is: your handle,
+permanently, in the first row of a ledger
 that did not previously have a first row.
 
 ## License
