@@ -123,6 +123,60 @@ interface LedgerCliArgs {
   notes?: string;
 }
 
+/** Render a summary table of contributor totals by award kind. */
+function renderSummary(entries: LedgerEntry[]): string {
+  if (entries.length === 0) return "No awards yet.";
+
+  // Group by contributor, then by kind.
+  const byContributor: Map<string, Map<string, number>> = new Map();
+  for (const e of entries) {
+    if (!byContributor.has(e.contributor)) {
+      byContributor.set(e.contributor, new Map());
+    }
+    const kinds = byContributor.get(e.contributor)!;
+    const amount = Number.parseFloat(e.amount) || 0;
+    kinds.set(e.kind, (kinds.get(e.kind) ?? 0) + amount);
+  }
+
+  // Collect all kind columns across all contributors.
+  const allKinds = new Set<string>();
+  for (const kinds of byContributor.values()) {
+    for (const kind of kinds.keys()) allKinds.add(kind);
+  }
+  const kindOrder = ["bounty", "proposal", "proposal-shipped", "implementation"];
+  const activeKinds = kindOrder.filter((k) => allKinds.has(k));
+
+  // Header row.
+  const header = ["Contributor", ...activeKinds, "Total"];
+  const colWidths = header.map((h) => h.length);
+
+  const rows: string[][] = [];
+  for (const [contributor, kinds] of byContributor.entries()) {
+    const row: string[] = [contributor];
+    let total = 0;
+    for (const kind of activeKinds) {
+      const val = kinds.get(kind) ?? 0;
+      row.push(String(val));
+      total += val;
+    }
+    row.push(String(total));
+    // Track max column widths.
+    for (let i = 0; i < row.length; i++) {
+      colWidths[i] = Math.max(colWidths[i]!, row[i]!.length);
+    }
+    rows.push(row);
+  }
+
+  // Build the table.
+  const separator = " " + colWidths.map((w) => "-".repeat(w)).join(" | ") + " ";
+  const headerLine = " " + header.map((h, i) => h.padEnd(colWidths[i]!)).join(" | ") + " ";
+  const bodyLines = rows.map(
+    (r) => " " + r.map((c, i) => c.padEnd(colWidths[i]!)).join(" | ") + " ",
+  );
+
+  return [headerLine, separator, ...bodyLines].join("\n");
+}
+
 function main(): void {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -135,9 +189,18 @@ function main(): void {
       proposer: { type: "string" },
       denomination: { type: "string" },
       notes: { type: "string" },
+      summary: { type: "boolean" },
     },
     strict: true,
   });
+
+  // The --summary flag is a standalone mode: read, aggregate, print table.
+  if (values.summary) {
+    const content = readFileSync(LEDGER_PATH, "utf-8");
+    const entries = parseLedger(content);
+    process.stdout.write(renderSummary(entries) + "\n");
+    return;
+  }
 
   const pr = values.pr;
   const contributor = values.contributor;
