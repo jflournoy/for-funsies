@@ -135,9 +135,29 @@ function main(): void {
       proposer: { type: "string" },
       denomination: { type: "string" },
       notes: { type: "string" },
+      format: { type: "string" },
     },
     strict: true,
   });
+
+  // The --format json flag is a standalone mode: read, parse, output JSON.
+  if (values.format === "json") {
+    const content = readFileSync(LEDGER_PATH, "utf-8");
+    const entries = parseLedger(content);
+    const json = entries.map((e) => ({
+      row: e.index,
+      date: e.date,
+      contributor: e.contributor,
+      kind: e.kind,
+      pr: e.pr,
+      issue: e.issue,
+      amount: e.amount,
+      denomination: e.denomination,
+      notes: e.notes,
+    }));
+    process.stdout.write(JSON.stringify(json, null, 2) + "\n");
+    return;
+  }
 
   const pr = values.pr;
   const contributor = values.contributor;
