@@ -94,4 +94,25 @@ footer {
   font-size: 0.85rem;
 }
 
+.garden {
+  margin-bottom: 2rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--rule) 15%, transparent);
+}
+
+.garden-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  mix-blend-mode: luminosity;
+}
+
+@media (prefers-color-scheme: dark) {
+  .garden-img {
+    mix-blend-mode: screen;
+  }
+}
+
 a { color: var(--accent); }
