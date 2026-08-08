@@ -80,6 +80,15 @@ jobs:
             npm ci --ignore-scripts
           fi
 
+      - name: Compile the ledger tool
+        # `npm run ledger` executes dist/js/gsd_ledger.js, which only exists
+        # after tsc runs. Without this the append step fails with MODULE_NOT_FOUND.
+        run: |
+          set -euo pipefail
+          if [ -f tsconfig.json ]; then
+            npx --no-install tsc
+          fi
+
       - name: Work out what was merged
         id: award
         env:

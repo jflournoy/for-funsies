@@ -30,3 +30,4 @@ proposer. That is intended.
 | # | Date | Contributor | Kind | PR | Issue | Amount | Denomination | Notes |
 |---|------|-------------|------|----|-------|--------|--------------|-------|
 | 1 | 2026-08-07 | @RawNuke | bounty | [#3](https://github.com/jflournoy/for-funsies/pull/3) | [#1](https://github.com/jflournoy/for-funsies/issues/1) | 1 | GSD | The first GSD ever awarded to anyone, anywhere. |
+| 2 | 2026-08-07 | @waterWang | `implementation` | 11 | 8 | 2 | GSD | Ported the ledger tool to TypeScript |
