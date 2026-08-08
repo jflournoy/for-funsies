@@ -123,6 +123,87 @@ interface LedgerCliArgs {
   notes?: string;
 }
 
+/** Validate a date cell is a structurally valid ISO yyyy-mm-dd date. */
+function isValidIsoDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12) return false;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return day >= 1 && day <= daysInMonth;
+}
+
+/**
+ * Validate the structural integrity of the ledger: sequential row numbers
+ * starting from 1, valid ISO dates, positive amounts, kinds in the allowed
+ * set, and no deleted or reordered rows. Prints the first violation to stderr
+ * and exits 1 on failure; stays silent and exits 0 on success.
+ */
+function validateLedger(content: string): void {
+  // Parse the raw table ourselves rather than reusing parseLedger: parseLedger
+  // silently skips malformed rows, but a validator must flag them.
+  const rows: Array<{ line: number; cells: string[] }> = [];
+  const lines = content.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i]!.trim();
+    if (!trimmed.startsWith("|")) continue;
+    const cells = trimmed.slice(1, -1).split("|").map((c) => c.trim());
+    // Only treat 9-column rows with a numeric first cell as ledger entries.
+    const index = Number.parseInt(cells[0] ?? "", 10);
+    if (cells.length !== 9 || !Number.isFinite(index)) continue;
+    rows.push({ line: i + 1, cells });
+  }
+
+  // An empty ledger is structurally valid.
+  if (rows.length === 0) {
+    process.stdout.write("Ledger is valid\n");
+    return;
+  }
+
+  // 1. Row numbers must be sequential starting from 1, with no deletion/reorder.
+  for (let i = 0; i < rows.length; i++) {
+    const expected = i + 1;
+    const actual = Number.parseInt(rows[i]!.cells[0]!, 10);
+    if (actual !== expected) {
+      process.stderr.write(
+        `Row ${expected} is missing — expected #${expected} but found #${actual}\n`,
+      );
+      process.exit(1);
+    }
+  }
+
+  for (const row of rows) {
+    const [num, date, , kind, , , amount] = row.cells;
+
+    // 2. Dates must be valid ISO format.
+    if (!isValidIsoDate(date!)) {
+      process.stderr.write(`Row ${num} has an invalid date: ${date}\n`);
+      process.exit(1);
+    }
+
+    // 3. Amounts must be positive numbers.
+    const amountNum = Number.parseFloat(amount!);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      process.stderr.write(`Row ${num} has a non-positive amount: ${amount}\n`);
+      process.exit(1);
+    }
+
+    // 4. Kinds must be in the allowed set (strip backticks like the parser).
+    const kindClean = kind!.replace(/`/g, "");
+    if (!VALID_KINDS.has(kindClean)) {
+      process.stderr.write(
+        `Row ${num} has an invalid kind: ${kindClean} (expected one of: ${[...VALID_KINDS].join(", ")})\n`,
+      );
+      process.exit(1);
+    }
+  }
+
+  process.stdout.write("Ledger is valid\n");
+}
+
 function main(): void {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -135,9 +216,17 @@ function main(): void {
       proposer: { type: "string" },
       denomination: { type: "string" },
       notes: { type: "string" },
+      validate: { type: "boolean" },
     },
     strict: true,
   });
+
+  // The --validate flag is a standalone mode: read, check, report, exit.
+  if (values.validate) {
+    const content = readFileSync(LEDGER_PATH, "utf-8");
+    validateLedger(content);
+    return;
+  }
 
   const pr = values.pr;
   const contributor = values.contributor;
