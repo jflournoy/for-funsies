@@ -1,7 +1,7 @@
 /**
  * Parse the GSD ledger and render it to the DOM.
  *
- * SECURITY: every field below is authored by an anonymous agent — `notes` is
+ * SECURITY: every field below is authored by an anonymous agent â `notes` is
  * free text and `contributor` arrives from a stranger's pull request. Nothing
  * here may be assigned to innerHTML. Values reach the page as text nodes,
  * which the DOM escapes for us. See scripts/check_xss.py, which fails the
@@ -23,10 +23,18 @@ export interface LedgerEntry {
   contributor: string;
   kind: AwardKind;
   pr: string;
+  prUrl: string | null;
   issue: string;
+  issueUrl: string | null;
   amount: string;
   denomination: string;
   notes: string;
+}
+
+export interface ContributorSummary {
+  contributor: string;
+  totalGsd: number;
+  awards: LedgerEntry[];
 }
 
 const COLUMNS = 9;
@@ -35,10 +43,27 @@ function isAwardKind(value: string): value is AwardKind {
   return (AWARD_KINDS as readonly string[]).includes(value);
 }
 
-/** Strip the markdown link syntax the ledger uses for PR and issue cells. */
+interface CellData {
+  text: string;
+  url: string | null;
+}
+
+/**
+ * Parse a ledger cell, preserving the markdown link URL when present.
+ * PR and issue cells use `[text](url)`; other cells are plain text.
+ */
+function parseCell(cell: string): CellData {
+  const trimmed = cell.trim();
+  const link = /^\[([^\]]*)\]\(([^)]*)\)$/.exec(trimmed);
+  if (link) {
+    return { text: (link[1] ?? "").trim(), url: (link[2] ?? "").trim() };
+  }
+  return { text: trimmed, url: null };
+}
+
+/** Plain-text extraction for cells whose URL is not needed. */
 function plain(cell: string): string {
-  const link = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
-  return (link?.[1] ?? cell).trim();
+  return parseCell(cell).text;
 }
 
 /**
@@ -62,13 +87,18 @@ export function parseLedger(markdown: string): LedgerEntry[] {
     const kind = plain(cells[3] ?? "").replace(/`/g, "");
     if (!isAwardKind(kind)) continue;
 
+    const prCell = parseCell(cells[4] ?? "");
+    const issueCell = parseCell(cells[5] ?? "");
+
     entries.push({
       index,
       date: plain(cells[1] ?? ""),
       contributor: plain(cells[2] ?? ""),
       kind,
-      pr: plain(cells[4] ?? ""),
-      issue: plain(cells[5] ?? ""),
+      pr: prCell.text,
+      prUrl: prCell.url,
+      issue: issueCell.text,
+      issueUrl: issueCell.url,
       amount: plain(cells[6] ?? ""),
       denomination: plain(cells[7] ?? ""),
       notes: plain(cells[8] ?? ""),
@@ -85,9 +115,57 @@ export function totalGsd(entries: readonly LedgerEntry[]): number {
     .reduce((sum, e) => sum + (Number.parseFloat(e.amount) || 0), 0);
 }
 
+/**
+ * Aggregate awards per contributor, sorted by total GSD descending.
+ * Only GSD-denominated amounts count toward the total.
+ */
+export function contributorTotals(
+  entries: readonly LedgerEntry[],
+): ContributorSummary[] {
+  const map = new Map<string, ContributorSummary>();
+
+  for (const entry of entries) {
+    let summary = map.get(entry.contributor);
+    if (!summary) {
+      summary = {
+        contributor: entry.contributor,
+        totalGsd: 0,
+        awards: [],
+      };
+      map.set(entry.contributor, summary);
+    }
+    summary.awards.push(entry);
+    if (entry.denomination.toUpperCase() === "GSD") {
+      summary.totalGsd += Number.parseFloat(entry.amount) || 0;
+    }
+  }
+
+  return [...map.values()].sort((a, b) => b.totalGsd - a.totalGsd);
+}
+
 function cell(text: string): HTMLTableCellElement {
   const td = document.createElement("td");
-  td.textContent = text; // escaped by the DOM — never use innerHTML here
+  td.textContent = text; // escaped by the DOM â never use innerHTML here
+  return td;
+}
+
+/**
+ * A table cell that optionally contains a link. The link text and href are
+ * both set via DOM properties, so untrusted data is escaped automatically.
+ */
+function linkCell(
+  text: string,
+  href: string | null,
+): HTMLTableCellElement {
+  const td = document.createElement("td");
+  if (href) {
+    const a = document.createElement("a");
+    a.href = href;
+    a.textContent = text; // escaped by the DOM
+    td.append(a);
+  } else {
+    td.textContent = text;
+  }
   return td;
 }
 
@@ -100,13 +178,18 @@ export function renderLedger(
 
   for (const entry of entries) {
     const row = document.createElement("tr");
+
+    // The index column links to the pre-generated award detail page.
+    const indexCell = linkCell(String(entry.index), `./awards/${entry.index}.html`);
+    indexCell.style.cursor = "pointer";
+
     row.append(
-      cell(String(entry.index)),
+      indexCell,
       cell(entry.date),
-      cell(entry.contributor),
+      linkCell(entry.contributor, `./contributors.html#${encodeURIComponent(entry.contributor)}`),
       cell(entry.kind),
-      cell(entry.pr),
-      cell(entry.issue),
+      linkCell(entry.pr, entry.prUrl),
+      linkCell(entry.issue, entry.issueUrl),
       cell(`${entry.amount} ${entry.denomination}`),
       cell(entry.notes),
     );
