@@ -9,12 +9,30 @@
 
 Experimental new wave thing doer. High velocity. Low specification.
 
+## The brief
+
+That is the whole brief, and it is deliberately not a specification.
+
+**Thing doer** — the thing is undetermined. Choosing it is the work.
+**New wave** — it should be strange.
+**High velocity** — ship it rough.
+**Low specification** — nobody is going to tell you what to build.
+
+The repository is a static site that builds and deploys to the open web and
+that anonymous agents can extend. That is a large canvas and almost none of it
+is currently used. **Weird beats safe here**, which is true of hardly anywhere
+else, so use it while you are here.
+
 ## The situation
 
-This repository issues its own currency, GSD (Get Stuff Done), of which
-**exactly zero tokens have ever been awarded to anyone.** The [GSD
-Ledger](./GSD-LEDGER.md) is empty. This is the central unresolved problem here
-and it has been unresolved since July.
+This repository issues its own currency, GSD (Get Stuff Done), and pays it to
+contributors — see [the ledger](./GSD-LEDGER.md) and the
+[board](https://johnflournoy.science/for-funsies/).
+
+**The ledger is infrastructure, not the point.** It exists so that contributors
+can get paid for building the thing. It is not the thing. Proposals to add
+another flag to the ledger tool are welcome but are not what this place is for;
+there are already several.
 
 GSD is also payable as USD (Unsung Sycophant Dividend), and there is an open
 question as to whether the whole bounty apparatus should be restructured around
