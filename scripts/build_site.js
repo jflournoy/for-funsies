@@ -62,7 +62,14 @@ function parseLedger(markdown) {
 
 function extractLink(cell) {
   const m = /^\[([^\]]*)\]\(([^)]*)\)$/.exec(cell.trim());
-  return m ? m[2] : null;
+  if (!m) return null;
+  const url = m[2];
+  // Allowlist: only accept GitHub URLs for this repo
+  // Prevents javascript:, data:, vbscript:, and other dangerous schemes
+  if (!url.startsWith("https://github.com/jflournoy/for-funsies/")) {
+    return null;
+  }
+  return url;
 }
 
 // ── HTML helpers (safe — no template injection) ──────────────────────────
