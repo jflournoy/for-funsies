@@ -12,9 +12,11 @@
     }
   },
 
+  // python3-yaml comes from apt, not pip: this image's Python is
+  // externally managed (PEP 668), so `pip3 install --user` refuses outright.
   // --ignore-scripts: never run lifecycle hooks from a PR's dependencies
   // automatically. Run `npm ci` by hand if you decide a PR's deps are fine.
-  "postCreateCommand": "pip3 install --user pyyaml && npm ci --ignore-scripts",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y python3-yaml && npm ci --ignore-scripts",
 
   "customizations": {
     "vscode": {
