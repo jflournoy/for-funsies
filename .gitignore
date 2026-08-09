@@ -16,6 +16,13 @@ npm-debug.log*
 .history/
 *.swp
 
+# Local agent/editor state — per-machine, not shared
+.claude/
+*.vexp-bak
+
+# Resolved by the devcontainer CLI at build time; not pinned on purpose
+.devcontainer/devcontainer-lock.json
+
 # Python (tooling in scripts/ only)
 __pycache__/
 *.pyc
