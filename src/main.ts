@@ -6,7 +6,7 @@
  * text goes to the page as text nodes; see src/ledger.ts.
  */
 
-import { parseLedger, renderLedger, totalGsd } from "./ledger.js";
+import { parseLedger, renderLedger, renderStats, totalGsd } from "./ledger.js";
 
 const LEDGER_URL = "./GSD-LEDGER.md";
 
@@ -14,7 +14,8 @@ async function main(): Promise<void> {
   const tbody = document.querySelector<HTMLElement>("#ledger-body");
   const total = document.querySelector<HTMLElement>("#total-gsd");
   const status = document.querySelector<HTMLElement>("#status");
-  if (!tbody || !total || !status) return;
+  const stats = document.querySelector<HTMLElement>("#ledger-stats");
+  if (!tbody || !total || !status || !stats) return;
 
   try {
     const response = await fetch(LEDGER_URL);
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
 
     const entries = parseLedger(await response.text());
     renderLedger(entries, tbody);
+    renderStats(entries, stats);
     total.textContent = String(totalGsd(entries));
 
     status.textContent =

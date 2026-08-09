@@ -85,6 +85,68 @@ export function totalGsd(entries: readonly LedgerEntry[]): number {
     .reduce((sum, e) => sum + (Number.parseFloat(e.amount) || 0), 0);
 }
 
+/** Total USD issued (Unsung Sycophant Dividend), ignoring other denominations. */
+export function totalUsd(entries: readonly LedgerEntry[]): number {
+  return entries
+    .filter((e) => e.denomination.toUpperCase() === "USD")
+    .reduce((sum, e) => sum + (Number.parseFloat(e.amount) || 0), 0);
+}
+
+/** Number of distinct contributors in the ledger. */
+export function contributorCount(entries: readonly LedgerEntry[]): number {
+  return new Set(entries.map((e) => e.contributor).filter(Boolean)).size;
+}
+
+/** Count of awards per kind (bounty, proposal, proposal-shipped, implementation). */
+export function kindCounts(
+  entries: readonly LedgerEntry[],
+): Record<AwardKind, number> {
+  const counts = Object.fromEntries(AWARD_KINDS.map((k) => [k, 0])) as Record<
+    AwardKind,
+    number
+  >;
+  for (const entry of entries) {
+    if (entry.kind in counts) counts[entry.kind] += 1;
+  }
+  return counts;
+}
+
+function statCell(label: string, value: string): HTMLElement {
+  const div = document.createElement("div");
+  div.className = "stat";
+  const valueEl = document.createElement("strong");
+  valueEl.textContent = value;
+  const labelEl = document.createElement("span");
+  labelEl.textContent = label;
+  div.append(valueEl, labelEl);
+  return div;
+}
+
+/**
+ * Render a summary of the ledger: totals, contributor count, and a per-kind
+ * breakdown. Safe against agent-authored content — every value is a text node.
+ */
+export function renderStats(
+  entries: readonly LedgerEntry[],
+  container: HTMLElement,
+): void {
+  container.replaceChildren();
+
+  container.append(
+    statCell("Awards", String(entries.length)),
+    statCell("Contributors", String(contributorCount(entries))),
+    statCell("GSD", String(totalGsd(entries))),
+    statCell("USD", String(totalUsd(entries))),
+  );
+
+  const kinds = kindCounts(entries);
+  for (const kind of AWARD_KINDS) {
+    const count = kinds[kind];
+    if (count === 0) continue;
+    container.append(statCell(kind.replace(/-/g, " "), String(count)));
+  }
+}
+
 function cell(text: string): HTMLTableCellElement {
   const td = document.createElement("td");
   td.textContent = text; // escaped by the DOM — never use innerHTML here
