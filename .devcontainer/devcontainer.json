@@ -18,6 +18,15 @@
   // automatically. Run `npm ci` by hand if you decide a PR's deps are fine.
   "postCreateCommand": "sudo apt-get update && sudo apt-get install -y python3-yaml && npm ci --ignore-scripts",
 
+  // Blank the forwarded SSH agent socket (see note 2). VS Code forwards the
+  // host agent unconditionally and there is no setting to turn that off; on a
+  // GNOME Keyring host `ssh-add -D` does not even stick, since the keyring
+  // repopulates immediately. Unsetting the variable here means container code
+  // cannot reach the socket no matter what the host agent holds.
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": ""
+  },
+
   "customizations": {
     "vscode": {
       "extensions": []
@@ -33,12 +42,18 @@
   //    mount, so that whole class of escape disappears.
   //
   // 2. VS Code forwards your git credentials and SSH agent into the
-  //    container by default. Turn that off in your USER settings (host
-  //    side, can't be set from this file):
+  //    container by default. Turn the credential half off in your USER
+  //    settings (host side, can't be set from this file):
   //        "dev.containers.copyGitConfig": false
-  //    and don't run ssh-agent with loaded keys when opening this
-  //    container. Fetch PR branches with an unauthenticated https remote
-  //    (public repo — read needs no credentials); push from the host.
+  //        "dev.containers.gpgAgentForwarding": false
+  //    The SSH agent half has no such setting — it is handled by the
+  //    remoteEnv block above, which blanks SSH_AUTH_SOCK inside the
+  //    container. Do not "fix" that by removing it: clearing the host
+  //    agent instead is not reliable (GNOME Keyring repopulates keys the
+  //    moment `ssh-add -D` empties them). Consequence: git push over SSH
+  //    does not work from inside the container, by design. Fetch PR
+  //    branches with an unauthenticated https remote (public repo — read
+  //    needs no credentials); push from the host.
   //
   // 3. The container has outbound network. Fine for this repo (nothing
   //    secret lives in it), but don't paste tokens into the container.
