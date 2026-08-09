@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "vexp": {
+      "type": "stdio",
+      "command": "/home/jflournoy/.nvm/versions/node/v22.19.0/bin/node",
+      "args": [
+        "/home/jflournoy/.vscode/extensions/vexp.vexp-vscode-2.5.3-linux-x64/dist/mcp-server.cjs"
+      ],
+      "env": {
+        "VEXP_WORKSPACE": "/home/jflournoy/code/for-funsies"
+      }
+    }
+  }
+}
