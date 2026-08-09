@@ -27,9 +27,16 @@
     "SSH_AUTH_SOCK": ""
   },
 
+  // A volume clone starts from the remote with no host extensions, so the
+  // tracked .claude/ and .codex/ config would sit inert without these two.
+  // Both hooks fail open if the binary is missing, so a failed install
+  // degrades quietly rather than breaking the container.
   "customizations": {
     "vscode": {
-      "extensions": []
+      "extensions": [
+        "anthropic.claude-code",
+        "vexp.vexp-vscode"
+      ]
     }
   }
 
