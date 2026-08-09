@@ -18,6 +18,8 @@ npm-debug.log*
 
 # Local agent/editor state — per-machine, not shared
 .claude/
+.codex/
+.vscode/mcp.json
 *.vexp-bak
 
 # Resolved by the devcontainer CLI at build time; not pinned on purpose
