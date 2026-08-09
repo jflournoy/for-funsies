@@ -16,7 +16,8 @@ npm-debug.log*
 .history/
 *.swp
 
-# Local agent/editor state — per-machine, not shared
+# Per-machine agent state. Note .codex/ and .vscode/mcp.json are NOT here:
+# their paths are container-internal, so they reproduce in a volume clone.
 .claude/
 *.vexp-bak
 
