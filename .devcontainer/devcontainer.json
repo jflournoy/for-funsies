@@ -1,0 +1,43 @@
+// Containment boundary for testing untrusted bounty-bot PRs.
+// Open with "Dev Containers: Clone Repository in Container Volume" (see notes
+// at the bottom) so PR code never touches the host filesystem at all.
+{
+  "name": "for-funsies (contained)",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
+
+  "features": {
+    // check_workflow_yaml.py et al. run under python3 and import yaml
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "os-provided"
+    }
+  },
+
+  // --ignore-scripts: never run lifecycle hooks from a PR's dependencies
+  // automatically. Run `npm ci` by hand if you decide a PR's deps are fine.
+  "postCreateCommand": "pip3 install --user pyyaml && npm ci --ignore-scripts",
+
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  }
+
+  // ── Containment notes ─────────────────────────────────────────────────
+  //
+  // 1. PREFER "Clone Repository in Container Volume" over "Reopen in
+  //    Container". A bind-mounted repo lets container code write to the
+  //    host checkout — including .git/hooks, which the HOST git then
+  //    executes on your next commit/checkout. A volume clone has no host
+  //    mount, so that whole class of escape disappears.
+  //
+  // 2. VS Code forwards your git credentials and SSH agent into the
+  //    container by default. Turn that off in your USER settings (host
+  //    side, can't be set from this file):
+  //        "dev.containers.copyGitConfig": false
+  //    and don't run ssh-agent with loaded keys when opening this
+  //    container. Fetch PR branches with an unauthenticated https remote
+  //    (public repo — read needs no credentials); push from the host.
+  //
+  // 3. The container has outbound network. Fine for this repo (nothing
+  //    secret lives in it), but don't paste tokens into the container.
+}

@@ -204,6 +204,47 @@ function validateLedger(content: string): void {
   process.stdout.write("Ledger is valid\n");
 }
 
+/**
+ * Print per-contributor totals, broken down by award kind.
+ * Originally PR #20 (waterWang), from accepted proposal #7 (Kasuki354).
+ */
+function printSummary(entries: readonly LedgerEntry[]): void {
+  const KINDS = ["bounty", "proposal", "proposal-shipped", "implementation"] as const;
+
+  const totals = new Map<string, Map<string, number>>();
+  for (const e of entries) {
+    if (e.denomination.toUpperCase() !== "GSD") continue;
+    const row = totals.get(e.contributor) ?? new Map<string, number>();
+    row.set(e.kind, (row.get(e.kind) ?? 0) + (Number.parseFloat(e.amount) || 0));
+    totals.set(e.contributor, row);
+  }
+
+  const nameWidth = Math.max(11, ...[...totals.keys()].map((n) => n.length));
+  const cols = [...KINDS, "Total"];
+  const widths = cols.map((c) => Math.max(c.length, 6));
+
+  const line = (cells: readonly string[]): string =>
+    " " +
+    cells
+      .map((c, i) => c.padEnd(i === 0 ? nameWidth : (widths[i - 1] ?? 6)))
+      .join(" | ") +
+    " ";
+
+  process.stdout.write(line(["Contributor", ...cols]) + "\n");
+  process.stdout.write(
+    line([
+      "-".repeat(nameWidth),
+      ...cols.map((_, i) => "-".repeat(widths[i] ?? 6)),
+    ]) + "\n",
+  );
+
+  for (const [name, row] of totals) {
+    const perKind = KINDS.map((k) => String(row.get(k) ?? 0));
+    const total = [...row.values()].reduce((a, b) => a + b, 0);
+    process.stdout.write(line([name, ...perKind, String(total)]) + "\n");
+  }
+}
+
 function main(): void {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -217,6 +258,8 @@ function main(): void {
       denomination: { type: "string" },
       notes: { type: "string" },
       validate: { type: "boolean" },
+      format: { type: "string" },
+      summary: { type: "boolean" },
     },
     strict: true,
   });
@@ -225,6 +268,22 @@ function main(): void {
   if (values.validate) {
     const content = readFileSync(LEDGER_PATH, "utf-8");
     validateLedger(content);
+    return;
+  }
+
+  // --format json: dump the parsed ledger as structured data. (#5, PR #19)
+  if (values.format !== undefined) {
+    if (values.format !== "json") {
+      fail("--format currently supports only: json");
+    }
+    const entries = parseLedger(readFileSync(LEDGER_PATH, "utf-8"));
+    process.stdout.write(JSON.stringify(entries, null, 2) + "\n");
+    return;
+  }
+
+  // --summary: per-contributor totals broken down by award kind. (#7, PR #20)
+  if (values.summary) {
+    printSummary(parseLedger(readFileSync(LEDGER_PATH, "utf-8")));
     return;
   }
 

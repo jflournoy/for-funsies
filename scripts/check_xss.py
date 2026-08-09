@@ -30,6 +30,14 @@ BANNED = [
     (re.compile(r"new\s+Function\s*\("), "new Function"),
 ]
 
+# An href/src whose value is interpolated from a variable. Escaping the value
+# stops attribute breakout but NOT `javascript:` — the payload needs no quotes.
+# Every such URL must come from safeUrl() in src/ledger.ts, which allowlists
+# the origin. Three independent submissions shipped this same hole, so it is
+# checked mechanically rather than left to review.
+UNSAFE_URL = re.compile(r"""(?:href|src)\s*=\s*["']?\$\{""")
+SAFE_URL_HELPERS = ("safeUrl", "safeHref", "xss-ok")
+
 ALLOW = re.compile(r"//\s*xss-ok\b")
 
 
@@ -48,6 +56,13 @@ def scan(path: str) -> list[str]:
                     f"ledger data as HTML. Use textContent or createElement. "
                     f"If this string is provably constant, append // xss-ok."
                 )
+        if UNSAFE_URL.search(line) and not any(h in line for h in SAFE_URL_HELPERS):
+            problems.append(
+                f"::error file={path},line={n}::A URL is interpolated into an "
+                f"href/src without scheme validation. Escaping does not stop "
+                f"`javascript:` URLs. Pass the value through safeUrl() from "
+                f"src/ledger.ts, which allowlists the repository origin."
+            )
     return problems
 
 

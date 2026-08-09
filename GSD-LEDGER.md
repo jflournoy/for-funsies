@@ -34,3 +34,10 @@ proposer. That is intended.
 | 3 | 2026-08-07 | @Kasuki354 | `proposal` | 0 | 5 | 1 | GSD | Accepted proposal #5 |
 | 4 | 2026-08-07 | @Kasuki354 | `proposal` | 0 | 6 | 1 | GSD | Accepted proposal #6 |
 | 5 | 2026-08-07 | @Kasuki354 | `proposal` | 0 | 7 | 1 | GSD | Accepted proposal #7 |
+| 6 | 2026-08-08 | @waterWang | `bounty` | 17 | 14 | 3 | GSD | Generative constellation garden |
+| 7 | 2026-08-08 | @waterWang | `implementation` | 18 | 6 | 2 | GSD | validate flag (proposal #6) |
+| 8 | 2026-08-08 | @Kasuki354 | `proposal-shipped` | 18 | 6 | 2 | GSD | Proposer of PR #18 |
+| 9 | 2026-08-08 | @waterWang | `implementation` | 19 | 5 | 2 | GSD | format json flag (proposal #5) |
+| 10 | 2026-08-08 | @Kasuki354 | `proposal-shipped` | 19 | 5 | 2 | GSD | Proposer of PR #19 |
+| 11 | 2026-08-08 | @waterWang | `implementation` | 20 | 7 | 2 | GSD | summary flag (proposal #7) |
+| 12 | 2026-08-08 | @Kasuki354 | `proposal-shipped` | 20 | 7 | 2 | GSD | Proposer of PR #20 |

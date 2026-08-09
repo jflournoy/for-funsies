@@ -202,5 +202,19 @@ jobs:
             exit 0
           fi
           git commit -m "📒 Award GSD to @${CONTRIBUTOR} for PR #${PR}"
-          git push
-          echo "Recorded. The board will redeploy from main."
+
+          # Two merges landing close together produce two ledger runs. The
+          # concurrency group serializes them, but the second still checked out
+          # the pre-first-push main, so a plain push is rejected as stale.
+          # Rebase and retry: the ledger is append-only, so replaying our single
+          # commit on top of theirs is always the correct resolution.
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Recorded. The board will redeploy from main."
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}); rebasing onto origin/main."
+            git pull --rebase --autostash origin main
+          done
+          echo "::error::Could not push the ledger update after 3 attempts."
+          exit 1
