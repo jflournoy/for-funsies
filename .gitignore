@@ -16,9 +16,10 @@ npm-debug.log*
 .history/
 *.swp
 
-# Per-machine agent state. Note .codex/ and .vscode/mcp.json are NOT here:
-# their paths are container-internal, so they reproduce in a volume clone.
-.claude/
+# Agent config (.claude/, .codex/, .vscode/mcp.json) is tracked on purpose:
+# the paths in it are container-internal, so a volume clone reproduces it.
+# Only genuinely local scratch state is ignored here.
+.claude/settings.local.json
 *.vexp-bak
 
 # Resolved by the devcontainer CLI at build time; not pinned on purpose
