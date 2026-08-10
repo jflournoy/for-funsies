@@ -16,6 +16,7 @@ import { execSync } from "node:child_process";
 import { dirname } from "node:path";
 
 import { renderGarden, buildSnapshot } from "../dist/js/garden.js";
+import { safeUrl } from "../dist/js/ledger.js";
 
 const DIST = "dist";
 const OWNER = "jflournoy";
@@ -49,9 +50,9 @@ function parseLedger(markdown) {
       contributor: stripLink(cells[2] ?? ""),
       kind,
       pr: stripLink(cells[4] ?? ""),
-      prLink: extractLink(cells[4] ?? ""),
+      prLink: safeUrl(cells[4] ?? ""),
       issue: stripLink(cells[5] ?? ""),
-      issueLink: extractLink(cells[5] ?? ""),
+      issueLink: safeUrl(cells[5] ?? ""),
       amount: stripLink(cells[6] ?? ""),
       denomination: stripLink(cells[7] ?? ""),
       notes: stripLink(cells[8] ?? ""),
@@ -60,17 +61,9 @@ function parseLedger(markdown) {
   return entries;
 }
 
-function extractLink(cell) {
-  const m = /^\[([^\]]*)\]\(([^)]*)\)$/.exec(cell.trim());
-  if (!m) return null;
-  const url = m[2];
-  // Allowlist: only accept GitHub URLs for this repo
-  // Prevents javascript:, data:, vbscript:, and other dangerous schemes
-  if (!url.startsWith("https://github.com/jflournoy/for-funsies/")) {
-    return null;
-  }
-  return url;
-}
+// URL sanitizing lives in src/ledger.ts (safeUrl) so the build and the
+// runtime share one allowlist. It also rejects control characters and
+// whitespace, which can smuggle a scheme past a plain prefix check.
 
 // ── HTML helpers (safe — no template injection) ──────────────────────────
 
@@ -82,6 +75,12 @@ function esc(s) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// Footer links are built from GITHUB_BASE, a module constant — no ledger data
+// reaches them. Assembled here so the marker sits on a code line rather than
+// inside the emitted HTML.
+const SOURCE_LINK = `<a href="${GITHUB_BASE}">Source</a>`; // xss-ok: constant
+const BOUNTIES_LINK = `<a href="${GITHUB_BASE}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty">Open bounties</a>`; // xss-ok: constant
 
 function pageShell(title, bodyContent, extraMeta = "") {
   return `<!doctype html>
@@ -117,8 +116,8 @@ function pageShell(title, bodyContent, extraMeta = "") {
         here and none is implied.
       </p>
       <p>
-        <a href="${GITHUB_BASE}">Source</a> ·
-        <a href="${GITHUB_BASE}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty">Open bounties</a>
+        ${SOURCE_LINK} ·
+        ${BOUNTIES_LINK}
       </p>
     </footer>
   </body>
@@ -128,13 +127,19 @@ function pageShell(title, bodyContent, extraMeta = "") {
 // ── Page generators ──────────────────────────────────────────────────────
 
 function awardPage(entry) {
+  // prLink/issueLink are already safeUrl() output (null unless they match the
+  // repository origin), so the ternary falls back to plain text for anything
+  // an agent smuggled in. The trailing marker tells check_xss.py the value on
+  // this line is sanitized upstream.
   const prHtml = entry.prLink
-    ? `<a href="${esc(entry.prLink)}">${esc(entry.pr)}</a>`
+    ? `<a href="${esc(entry.prLink)}">${esc(entry.pr)}</a>` // xss-ok: safeUrl at parse
     : esc(entry.pr);
   const issueHtml = entry.issueLink
-    ? `<a href="${esc(entry.issueLink)}">${esc(entry.issue)}</a>`
+    ? `<a href="${esc(entry.issueLink)}">${esc(entry.issue)}</a>` // xss-ok: safeUrl at parse
     : esc(entry.issue);
-  const contributorLink = `./contributors.html#${esc(entry.contributor)}`;
+  // Relative same-site anchor, not a ledger URL.
+  const contributorLink = `./contributors.html#${esc(entry.contributor)}`; // xss-ok: relative
+  const contributorHtml = `<a href="${contributorLink}">${esc(entry.contributor)}</a>`; // xss-ok: relative
 
   const body = `
       <div class="detail-card">
@@ -142,7 +147,7 @@ function awardPage(entry) {
         <h2>Award #${esc(String(entry.index))}</h2>
         <table class="detail-table">
           <tr><th>Date</th><td>${esc(entry.date)}</td></tr>
-          <tr><th>Contributor</th><td><a href="${contributorLink}">${esc(entry.contributor)}</a></td></tr>
+          <tr><th>Contributor</th><td>${contributorHtml}</td></tr>
           <tr><th>Kind</th><td>${esc(entry.kind)}</td></tr>
           <tr><th>PR</th><td>${prHtml}</td></tr>
           <tr><th>Issue</th><td>${issueHtml}</td></tr>
