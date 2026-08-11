@@ -54,6 +54,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   # The ledger is append-only; two concurrent writers would race on row
@@ -145,6 +146,9 @@ jobs:
           fi
           for v in "$PR" "$ISSUE"; do
             printf '%s' "$v" | grep -qE '^[0-9]+$' || { echo "::error::Non-numeric PR/issue."; exit 1; }
+            if [ "$v" = "0" ]; then
+              echo "::error::PR/Issue cannot be 0."; exit 1
+            fi
           done
           printf '%s' "$AMOUNT" | grep -qE '^[0-9]+(\.[0-9]+)?$' || { echo "::error::Bad amount."; exit 1; }
 
@@ -218,3 +222,12 @@ jobs:
           done
           echo "::error::Could not push the ledger update after 3 attempts."
           exit 1
+
+      - name: Trigger board redeploy
+        if: steps.award.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "Triggering pages.yml to publish the new award..."
+          gh workflow run pages.yml
