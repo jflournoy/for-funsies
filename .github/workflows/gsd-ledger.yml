@@ -146,9 +146,7 @@ jobs:
           fi
           for v in "$PR" "$ISSUE"; do
             printf '%s' "$v" | grep -qE '^[0-9]+$' || { echo "::error::Non-numeric PR/issue."; exit 1; }
-            if [ "$v" = "0" ]; then
-              echo "::error::PR/Issue cannot be 0."; exit 1
-            fi
+
           done
           printf '%s' "$AMOUNT" | grep -qE '^[0-9]+(\.[0-9]+)?$' || { echo "::error::Bad amount."; exit 1; }
 
