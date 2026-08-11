@@ -218,3 +218,12 @@ jobs:
           done
           echo "::error::Could not push the ledger update after 3 attempts."
           exit 1
+      - name: Trigger board redeploy
+        if: steps.award.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run pages.yml --ref main
+          echo "Triggered Pages deploy. The new award will appear on the board."
+
