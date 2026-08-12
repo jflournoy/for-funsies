@@ -218,3 +218,15 @@ jobs:
           done
           echo "::error::Could not push the ledger update after 3 attempts."
           exit 1
+
+      - name: Redeploy the board
+        if: steps.award.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The ledger update is now on main, but pages.yml triggered
+          # simultaneously with us on the same push event and built from
+          # the pre-update ledger. Trigger a fresh deploy so the board
+          # shows the award that was just recorded.
+          gh workflow run "Deploy to Pages"
