@@ -58,13 +58,24 @@ const ALLOWED_URL_PREFIX = "https://github.com/jflournoy/for-funsies/";
  * back to rendering plain text.
  */
 export function safeUrl(cell: string): string | null {
-  const link = /^\[[^\]]*\]\(([^)]*)\)$/.exec(cell.trim());
+  const trimmed = cell.trim();
+  // Markdown link cell: [text](url)
+  const link = /^\[[^\]]*\]\(([^)]*)\)$/.exec(trimmed);
   const raw = link?.[1]?.trim();
-  if (!raw) return null;
-  // Reject control characters and whitespace, which can be used to smuggle
-  // a scheme past naive prefix checks (e.g. "java\tscript:").
-  if (/[\x00-\x20\x7f-\x9f]/.test(raw)) return null;
-  return raw.startsWith(ALLOWED_URL_PREFIX) ? raw : null;
+  if (raw) {
+    // Reject control characters and whitespace, which can be used to smuggle
+    // a scheme past naive prefix checks (e.g. "java\tscript:").
+    if (/[\x00-\x20\x7f-\x9f]/.test(raw)) return null;
+    return raw.startsWith(ALLOWED_URL_PREFIX) ? raw : null;
+  }
+  // Bare PR/issue number (e.g. "23" or "#23")
+  const bare = /^#?(\d+)$/.exec(trimmed);
+  if (bare) {
+    const num = bare[1] ?? "";
+    // Construct URL to the pull request (most common use)
+    return `${ALLOWED_URL_PREFIX}pull/${num}`;
+  }
+  return null;
 }
 
 /**

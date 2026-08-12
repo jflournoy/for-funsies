@@ -14,8 +14,15 @@ const GITHUB_BASE = "https://github.com/jflournoy/for-funsies";
 
 /** Extract the PR/issue number from a markdown cell like `[#3](https://...)`. */
 function extractNumber(cell: string): string | null {
-  const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
-  return m ? (m[1] ?? null) : null;
+  const trimmed = cell.trim();
+  // Markdown link: [#3](https://...)
+  const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(trimmed);
+  if (m) {
+    const display = m[1] ?? "";
+    return display.replace(/^#/, "") || null;
+  }
+  // Bare number with optional # prefix: #23 or 23
+  return (/^#?(\d+)$/.exec(trimmed))?.[1] ?? null;
 }
 
 /** Make a GitHub link element. Safe — uses createElement, not innerHTML. */
