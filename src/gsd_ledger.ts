@@ -42,6 +42,24 @@ function today(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+const REPO_URL = "https://github.com/jflournoy/for-funsies";
+
+/**
+ * Render a validated PR or issue number as a markdown link to the corresponding
+ * GitHub page, so award pages can link back to the work that earned them.
+ *
+ * The PR and issue numbers are validated as `^[0-9]+$` by the caller before
+ * they reach the ledger, so building a URL from them is safe. A `0` means
+ * "not applicable" (e.g. a proposal row with no PR) and is left as plain text.
+ * We never pass through a URL authored by a contributor.
+ */
+function linkedNumber(value: string, kind: "pull" | "issues"): string {
+  if (value === "0" || !/^[0-9]+$/.test(value)) {
+    return value;
+  }
+  return `[#${value}](${REPO_URL}/${kind}/${value})`;
+}
+
 function buildRow(
   num: number,
   date: string,
@@ -53,7 +71,10 @@ function buildRow(
   denomination: string,
   notes: string,
 ): string {
-  return `| ${num} | ${date} | ${contributor} | \`${kind}\` | ${pr} | ${issue} | ${amount} | ${denomination} | ${notes} |`;
+  return `| ${num} | ${date} | ${contributor} | \`${kind}\` | ${linkedNumber(
+    pr,
+    "pull",
+  )} | ${linkedNumber(issue, "issues")} | ${amount} | ${denomination} | ${notes} |`;
 }
 
 interface InsertPositions {
