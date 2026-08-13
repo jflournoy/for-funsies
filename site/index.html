@@ -57,8 +57,13 @@
 
     <footer>
       <section class="garden" aria-label="generative contribution garden">
-        <img src="./garden.svg" alt="Contribution constellation — grows with each build" class="garden-img" />
+        <div id="garden" class="garden-client">
+          <noscript>
+            <img src="./garden.svg" alt="Contribution constellation — grows with each build" class="garden-img" />
+          </noscript>
+        </div>
       </section>
+      <script type="application/json" id="garden-data"></script>
       <p>
         GSD is a joke currency with no monetary value and no redemption
         mechanism. <strong>USD is also a joke currency</strong> — here it means
