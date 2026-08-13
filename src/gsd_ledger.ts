@@ -53,7 +53,7 @@ function buildRow(
   denomination: string,
   notes: string,
 ): string {
-  return `| ${num} | ${date} | ${contributor} | \`${kind}\` | ${pr} | ${issue} | ${amount} | ${denomination} | ${notes} |`;
+  return `| ${num} | ${date} | ${contributor} | \`${kind}\` | [#${pr}](https://github.com/jflournoy/for-funsies/pull/${pr}) | [#${issue}](https://github.com/jflournoy/for-funsies/issues/${issue}) | ${amount} | ${denomination} | ${notes} |`;
 }
 
 interface InsertPositions {
