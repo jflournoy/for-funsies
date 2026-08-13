@@ -10,7 +10,7 @@
     "ledger": "node dist/js/gsd_ledger.js",
     "build": "tsc && node scripts/build_site.js",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && python3 scripts/check_workflow_yaml.py && python3 scripts/check_workflow_injection.py && python3 scripts/check_xss.py"
+    "check": "npm run typecheck && npm run build && node scripts/check_ledger_links.mjs && python3 scripts/check_workflow_yaml.py && python3 scripts/check_workflow_injection.py && python3 scripts/check_xss.py"
   },
   "devDependencies": {
     "@types/node": "26.2.0",

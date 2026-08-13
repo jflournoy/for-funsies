@@ -53,7 +53,9 @@ function buildRow(
   denomination: string,
   notes: string,
 ): string {
-  return `| ${num} | ${date} | ${contributor} | \`${kind}\` | ${pr} | ${issue} | ${amount} | ${denomination} | ${notes} |`;
+  const prCell = `[#${pr}](https://github.com/jflournoy/for-funsies/pull/${pr})`;
+  const issueCell = `[#${issue}](https://github.com/jflournoy/for-funsies/issues/${issue})`;
+  return `| ${num} | ${date} | ${contributor} | \`${kind}\` | ${prCell} | ${issueCell} | ${amount} | ${denomination} | ${notes} |`;
 }
 
 interface InsertPositions {
@@ -301,6 +303,14 @@ function main(): void {
   if (!issue) fail("--issue is required");
   if (!amount) fail("--amount is required");
   if (!kind) fail("--kind is required");
+
+  if (!/^[1-9][0-9]*$/.test(pr)) {
+    fail("--pr must be a positive integer");
+  }
+
+  if (!/^[1-9][0-9]*$/.test(issue)) {
+    fail("--issue must be a positive integer");
+  }
 
   if (!VALID_KINDS.has(kind)) {
     fail(`--kind must be one of: ${[...VALID_KINDS].join(", ")}`);
