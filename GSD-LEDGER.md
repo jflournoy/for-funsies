@@ -43,3 +43,4 @@ proposer. That is intended.
 | 12 | 2026-08-08 | @Kasuki354 | `proposal-shipped` | 20 | 7 | 2 | GSD | Proposer of PR #20 |
 | 13 | 2026-08-11 | @waterWang | `bounty` | 10 | 9 | 2 | GSD | Closed #9 |
 | 14 | 2026-08-12 | @waterWang | `bounty` | 22 | 21 | 5 | GSD | Closed #21 |
+| 15 | 2026-08-13 | @CREATORRADHEY | `bounty` | 23 | 21 | 5 | GSD | Winning manifesto for #21 - THE DARE RELAY. Adopted as MANIFESTO.md. |
