@@ -102,6 +102,7 @@ function pageShell(title, bodyContent, extraMeta = "") {
       <nav class="nav-links">
         <a href="./">Ledger</a>
         <a href="./contributors.html">Contributors</a>
+        <a href="./pulse.html">Pulse</a>
       </nav>
     </header>
     <main>
@@ -211,6 +212,219 @@ function contributorsPage(entries) {
   return pageShell("Contributors", body);
 }
 
+// ── Pulse page ─────────────────────────────────────────────────────────
+
+const PULSE_BUILDS = 3;
+
+function shortHash(hash) {
+  return hash.slice(0, 7);
+}
+
+function mergePrFromSubject(subject) {
+  const m = /Merge pull request #(\d+)/.exec(subject);
+  return m ? m[1] : null;
+}
+
+function gitHubLink(path) {
+  return `${GITHUB_BASE}/${path}`;
+}
+
+function pulsePage(entries, commits) {
+  // Take the most recent PULSE_BUILDS commits as "builds"
+  const builds = commits.slice(0, PULSE_BUILDS);
+
+  // Build number = total commits (matches garden caption)
+  const buildNum = builds.length > 0 ? commits.length : 0;
+
+  // Total GSD from the ledger
+  let totalGsd = 0;
+  const contributorSet = new Set();
+  for (const e of entries) {
+    contributorSet.add(e.contributor);
+    if (e.denomination.toUpperCase() === "GSD") {
+      totalGsd += Number.parseFloat(e.amount) || 0;
+    }
+  }
+  const totalContributors = contributorSet.size;
+
+  // Newest GSD award (last entry in the ledger)
+  const newestAward = entries.length > 0 ? entries[entries.length - 1] : null;
+
+  // Detect ledger-lag: compare the most recent merge commit date with the
+  // newest ledger entry date. If the merge is newer, the award may not
+  // exist yet in this build.
+  let ledgerLag = false;
+  let newestMergeCommit = null;
+  for (const c of commits) {
+    if (mergePrFromSubject(c.subject)) {
+      newestMergeCommit = c;
+      break;
+    }
+  }
+  if (newestMergeCommit && newestAward) {
+    // Compare dates: if the merge commit is newer than the last award,
+    // the ledger hasn't caught up yet.
+    ledgerLag = new Date(newestMergeCommit.date) > new Date(newestAward.date);
+  }
+
+  // Build the timeline rows — one per recent build
+  let timelineRows = "";
+  for (let i = 0; i < builds.length; i++) {
+    const c = builds[i];
+    if (!c) continue;
+    const pr = mergePrFromSubject(c.subject);
+    const hashShort = shortHash(c.hash);
+    const hashLink = `<a href="${gitHubLink("commit/" + c.hash)}">${esc(hashShort)}</a>`; // xss-ok: gitHubLink wraps GITHUB_BASE constant
+    const dateShort = esc(c.date.slice(0, 10));
+
+    // Find the newest award that matches this build's PR
+    const matchingAward = pr ? entries.find(e => e.pr === pr) : null;
+
+    // What happened in this build: merge PR or award or something else
+    let action = "";
+    if (pr) {
+      action = `Merged PR #${esc(pr)}`;
+    } else if (c.subject.startsWith("\u{1F4D2}")) {
+      action = esc(c.subject.slice(0, 60));
+    } else {
+      action = esc(c.subject.slice(0, 60));
+    }
+
+    // Contributor link for this build
+    const contributor = matchingAward
+      ? `<a href="./contributors.html#c-${esc(matchingAward.contributor).replace(/[^a-zA-Z0-9_-]/g, "_")}">${esc(matchingAward.contributor)}</a>`
+      : esc(c.author);
+
+    // Award link
+    const awardLink = matchingAward
+      ? `<a href="./award-${matchingAward.index}.html">${esc(matchingAward.amount)} ${esc(matchingAward.denomination)}</a>`
+      : '<span class="muted">pending</span>';
+
+    // Star count (commits in this build window — simplified to total stars)
+    const starCount = builds.length - i;
+
+    timelineRows += `<tr>
+      <td class="num">${esc(String(buildNum - builds.length + 1 + i))}</td>
+      <td>${hashLink}</td>
+      <td>${dateShort}</td>
+      <td>${action}</td>
+      <td>${contributor}</td>
+      <td>${awardLink}</td>
+      <td class="num">${starCount}</td>
+    </tr>`;
+  }
+
+  // Newest merged PR section
+  let newestPRHtml = "";
+  if (newestMergeCommit) {
+    const pr = mergePrFromSubject(newestMergeCommit.subject);
+    newestPRHtml = `
+      <div class="pulse-card">
+        <h3>Newest merged PR</h3>
+        <p><a href="${gitHubLink("pull/" + pr)}">PR #${esc(pr)}</a></p> // xss-ok: gitHubLink wraps GITHUB_BASE constant
+        <p class="meta">${esc(newestMergeCommit.author)} — ${esc(newestMergeCommit.date.slice(0, 10))}</p>
+        <p class="meta">${esc(newestMergeCommit.subject.slice(0, 120))}</p>
+      </div>`;
+  } else {
+    newestPRHtml = '<div class="pulse-card"><h3>Newest merged PR</h3><p class="muted">No merge commits found.</p></div>';
+  }
+
+  // Newest GSD award section
+  let newestAwardHtml = "";
+  if (newestAward) {
+    const awardContributorLink = `<a href="./contributors.html#c-${esc(newestAward.contributor).replace(/[^a-zA-Z0-9_-]/g, "_")}">${esc(newestAward.contributor)}</a>`;
+    newestAwardHtml = `
+      <div class="pulse-card">
+        <h3>Newest GSD award</h3>
+        <p><a href="./award-${newestAward.index}.html">Award #${esc(String(newestAward.index))}</a></p>
+        <p class="meta">${awardContributorLink} — ${esc(newestAward.amount)} ${esc(newestAward.denomination)}</p>
+        <p class="meta">${esc(newestAward.kind)}${newestAward.notes ? `: ${esc(newestAward.notes)}` : ""}</p>
+      </div>`;
+  } else {
+    newestAwardHtml = '<div class="pulse-card"><h3>Newest GSD award</h3><p class="muted">No awards yet.</p></div>';
+  }
+
+  // What's new section
+  let whatsNewHtml = "";
+  if (entries.length > 0) {
+    // Count new contributors: those whose first appearance is in the recent entries
+    const recentEntries = entries.slice(-PULSE_BUILDS);
+    const firstSeen = new Map();
+    for (const e of entries) {
+      if (!firstSeen.has(e.contributor)) {
+        firstSeen.set(e.contributor, e.index);
+      }
+    }
+    const newContributors = [...contributorSet].filter(c => {
+      const first = firstSeen.get(c);
+      return first && recentEntries.some(e => e.index === first);
+    });
+
+    whatsNewHtml = `
+      <div class="pulse-card">
+        <h3>What\u2019s new since the previous build</h3>
+        <ul class="pulse-whatsnew">
+          <li><strong>${esc(String(totalContributors))}</strong> contributors total</li>
+          <li><strong>${esc(String(entries.length))}</strong> awards issued</li>
+          <li><strong>${totalGsd.toFixed(2)}</strong> GSD in circulation</li>
+          <li><strong>${esc(String(newContributors.length))}</strong> new contributor(s): ${newContributors.length > 0 ? newContributors.map(c => `<a href="./contributors.html#c-${esc(c).replace(/[^a-zA-Z0-9_-]/g, "_")}">${esc(c)}</a>`).join(", ") : "none"}</li>
+          <li><strong>${esc(String(commits.length))}</strong> stars in the garden</li>
+        </ul>
+      </div>`;
+  } else {
+    whatsNewHtml = '<div class="pulse-card"><h3>What\u2019s new</h3><p class="muted">No data yet.</p></div>';
+  }
+
+  // Ledger-lag decision
+  let lagNotice = "";
+  if (ledgerLag) {
+    const pr = mergePrFromSubject(newestMergeCommit.subject);
+    lagNotice = `
+      <div class="pulse-warning">
+        <strong>Note:</strong> The ledger is written by a workflow <em>after</em> the merge that triggers
+        a build. The newest PR (PR #${esc(pr)}) was merged after
+        the last awarded row, so the corresponding award may not appear until the
+        next build. The "Newest GSD award" shown above is the most recent <em>known</em> award.
+      </div>`;
+  }
+
+  const body = `
+      <p class="back-link"><a href="./">&larr; Back to Ledger</a></p>
+      <h2>Pulse</h2>
+      <p class="tagline">What changed since the last build, and the two before it.</p>
+
+      ${lagNotice}
+
+      <div class="pulse-grid">
+        ${newestPRHtml}
+        ${newestAwardHtml}
+        ${whatsNewHtml}
+      </div>
+
+      <h3>Build timeline</h3>
+      <p class="meta">Build N → @handle → award → star</p>
+      ${builds.length === 0 ? '<p class="empty">No builds yet.</p>' : `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Build</th>
+              <th>Commit</th>
+              <th>Date</th>
+              <th>Action</th>
+              <th>Contributor</th>
+              <th>Award</th>
+              <th class="num">&#9733;</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${timelineRows}
+          </tbody>
+        </table>
+      </div>`}`;
+  return pageShell("Pulse", body);
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -250,20 +464,20 @@ async function main() {
 
   const commits = [];
   try {
-    const log = execSync("git log '--format=%H|%an|%aI' --max-count=200", {
+    const log = execSync("git log '--format=%H|%an|%aI|%s' --max-count=200", {
       encoding: "utf-8",
       timeout: 10_000,
     });
     for (const line of log.trim().split("\n")) {
       const parts = line.split("|");
-      if (parts.length >= 3) {
-        commits.push({ hash: parts[0], author: parts[1], date: parts[2] });
+      if (parts.length >= 4) {
+        commits.push({ hash: parts[0], author: parts[1], date: parts[2], subject: parts.slice(3).join("|") });
       }
     }
   } catch {
     // git unavailable (e.g. detached build) — garden will be empty but
     // the page still renders. A single dummy commit keeps the field alive.
-    commits.push({ hash: "no-repo", author: "build", date: new Date().toISOString() });
+    commits.push({ hash: "no-repo", author: "build", date: new Date().toISOString(), subject: "no-repo" });
   }
 
   // Extract contributor handles from the GSD ledger — real repo data.
@@ -288,8 +502,13 @@ async function main() {
   await writeFile(`${DIST}/garden.svg`, svg, "utf-8");
   console.log("Generated garden.svg: " + snapshot.build + " builds, " + commits.length + " commits, " + contributors.size + " contributors.");
 
+  // Generate pulse page
+  const pulseHtml = pulsePage(entries, commits);
+  await writeFile(`${DIST}/pulse.html`, pulseHtml, "utf-8");
+  console.log("Generated pulse.html: " + commits.length + " recent builds shown.");
+
   const files = await readdir(DIST, { recursive: true });
-  console.log(`Built ${DIST}/ with ${files.length} entries${entries.length > 0 ? ` (${entries.length} award pages + contributors page)` : "."}`);
+  console.log(`Built ${DIST}/ with ${files.length} entries${entries.length > 0 ? ` (${entries.length} award pages + contributors page + pulse page)` : "."}`);
 }
 
 main().catch((error) => {

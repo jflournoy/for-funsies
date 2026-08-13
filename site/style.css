@@ -262,3 +262,70 @@ footer {
 }
 
 a { color: var(--accent); }
+
+
+/* ── Pulse page ──────────────────────────────────────────────────────── */
+
+.pulse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1rem;
+  margin: 0 0 2rem;
+}
+
+.pulse-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, var(--bg) 95%, var(--accent));
+}
+
+.pulse-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--gold);
+}
+
+.pulse-card p {
+  margin: 0.25rem 0;
+}
+
+.pulse-card .meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.pulse-whatsnew {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pulse-whatsnew li {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pulse-whatsnew li strong {
+  color: var(--gold);
+}
+
+.pulse-warning {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1.5rem;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pulse-warning strong {
+  color: var(--gold);
+}
