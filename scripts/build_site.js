@@ -26,7 +26,7 @@ const GITHUB_BASE = `https://github.com/${OWNER}/${REPO}`;
 // ── Ledger parsing (mirrors src/ledger.ts, but no DOM dependency) ────────
 
 const COLUMNS = 9;
-const AWARD_KINDS = new Set(["bounty", "proposal", "proposal-shipped", "implementation"]);
+const AWARD_KINDS = new Set(["bounty", "proposal", "proposal-shipped", "implementation", "correction"]);
 
 function stripLink(cell) {
   const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());

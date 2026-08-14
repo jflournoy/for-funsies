@@ -44,7 +44,7 @@ on:
         required: true
         default: "bounty"
         type: choice
-        options: [bounty, proposal, proposal-shipped, implementation]
+        options: [bounty, proposal, proposal-shipped, implementation, correction]
       proposer:
         description: "Proposer handle, if this implements someone else's accepted proposal"
         required: false
@@ -57,7 +57,15 @@ permissions:
 
 concurrency:
   # The ledger is append-only; two concurrent writers would race on row
-  # numbering. Queue instead of cancelling so no award is silently dropped.
+  # numbering, so the group serializes them into one writer at a time.
+  #
+  # cancel-in-progress: false protects the run that is currently executing,
+  # but it does NOT protect older QUEUED runs: when a newer run joins the
+  # group, GitHub cancels the previously-pending ones. That used to drop the
+  # award for the winning PR of #21 silently (run 31563011340 was cancelled
+  # and nothing was ever recorded). The append step below therefore carries an
+  # issue-level payout guard, and a cancelled run shows as "Cancelled" in the
+  # Actions UI rather than as a silent success.
   group: gsd-ledger
   cancel-in-progress: false
 
@@ -133,6 +141,17 @@ jobs:
               echo "Issue #${ISSUE} carries no bounty label. Nothing to record."
               echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
             fi
+            # A competition issue expects several entries (one winner + losing entries),
+            # paid different amounts. The automatic path cannot guess who won, and
+            # guessing wrong is the exact failure this workflow must stop repeating.
+            # So it refuses to guess: the award is left to a maintainer via
+            # workflow_dispatch, where amounts are an explicit input.
+            if gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}" \
+                 --jq '[.labels[].name] | contains(["competition"])' \
+                 | grep -q 'true'; then
+              echo "::notice::Issue #${ISSUE} is a competition. The automatic path does not guess winners. Use workflow_dispatch to record awards."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
             AMOUNT=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}" --jq '.title' \
                      | grep -oiE 'bounty:?[[:space:]]*([0-9]+(\.[0-9]+)?)' \
                      | grep -oE '[0-9]+(\.[0-9]+)?' | head -1 || echo "1")
@@ -146,7 +165,12 @@ jobs:
           for v in "$PR" "$ISSUE"; do
             printf '%s' "$v" | grep -qE '^[0-9]+$' || { echo "::error::Non-numeric PR/issue."; exit 1; }
           done
-          printf '%s' "$AMOUNT" | grep -qE '^[0-9]+(\.[0-9]+)?$' || { echo "::error::Bad amount."; exit 1; }
+          # corrections may be negative (reversing an erroneous award)
+          if [ "$KIND" = "correction" ]; then
+            printf '%s' "$AMOUNT" | grep -qE '^-?[0-9]+(\.[0-9]+)?$' || { echo "::error::Bad correction amount."; exit 1; }
+          else
+            printf '%s' "$AMOUNT" | grep -qE '^[0-9]+(\.[0-9]+)?$' || { echo "::error::Bad amount."; exit 1; }
+          fi
 
           {
             echo "skip=false"
@@ -179,6 +203,13 @@ jobs:
           set -euo pipefail
           if grep -qE "^\| [0-9]+ .*\| ${PR} \|" GSD-LEDGER.md 2>/dev/null; then
             echo "PR #${PR} is already in the ledger. Not paying twice."
+            exit 0
+          fi
+          # Issue-level guard: a bounty issue pays out once. Three distinct
+          # PRs closing one issue must not each write the full bounty.
+          PAID_ISSUE=$(node dist/js/gsd_ledger.js --format json 2>/dev/null | python3 -c "import json,sys; e=json.load(sys.stdin); i='$ISSUE'.lstrip('#'); print('yes' if any(x.get('kind')=='bounty' and str(x.get('issue','')).lstrip('#')==i for x in e) else 'no')")
+          if [ "$PAID_ISSUE" = "yes" ]; then
+            echo "::warning::Issue #${ISSUE} has already paid out. A bounty pays once; skipping PR #${PR} (losing entry)."
             exit 0
           fi
           ARGS=(--pr "$PR" --contributor "@$CONTRIBUTOR" --issue "$ISSUE"
