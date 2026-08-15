@@ -13,6 +13,8 @@ export const AWARD_KINDS = [
   "proposal",
   "proposal-shipped",
   "implementation",
+  "participation",
+  "correction",
 ] as const;
 
 export type AwardKind = (typeof AWARD_KINDS)[number];
@@ -104,11 +106,16 @@ export function parseLedger(markdown: string): LedgerEntry[] {
   return entries;
 }
 
-/** Total GSD issued, ignoring rows denominated in anything else. */
+/** Total GSD issued, ignoring rows denominated in anything else.
+ *  `correction` rows subtract from the contributor they reverse, so the
+ *  published total reflects superseded (wrong) awards. */
 export function totalGsd(entries: readonly LedgerEntry[]): number {
   return entries
     .filter((e) => e.denomination.toUpperCase() === "GSD")
-    .reduce((sum, e) => sum + (Number.parseFloat(e.amount) || 0), 0);
+    .reduce((sum, e) => {
+      const amt = Number.parseFloat(e.amount) || 0;
+      return e.kind === "correction" ? sum - amt : sum + amt;
+    }, 0);
 }
 
 function cell(text: string): HTMLTableCellElement {

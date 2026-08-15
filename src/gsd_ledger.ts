@@ -27,6 +27,8 @@ const VALID_KINDS = new Set<string>([
   "proposal",
   "proposal-shipped",
   "implementation",
+  "participation",
+  "correction",
 ]);
 
 function fail(msg: string): never {
@@ -112,6 +114,56 @@ function appendRows(lines: string[], newRows: string[]): string[] {
   return lines;
 }
 
+interface AwardSpec {
+  lastNum: number;
+  date: string;
+  contributor: string;
+  kind: string;
+  pr: string;
+  issue: string;
+  amount: string;
+  denomination: string;
+  notes: string;
+  proposer?: string | undefined;
+}
+
+/** Build and append one (or two, with a proposer) award rows, then write. */
+function writeAward(spec: AwardSpec, baseLines: string[]): void {
+  const newRows: string[] = [
+    buildRow(
+      spec.lastNum + 1,
+      spec.date,
+      spec.contributor,
+      spec.kind,
+      spec.pr,
+      spec.issue,
+      spec.amount,
+      spec.denomination,
+      spec.notes,
+    ),
+  ];
+
+  if (spec.proposer && spec.proposer !== spec.contributor) {
+    newRows.push(
+      buildRow(
+        spec.lastNum + 2,
+        spec.date,
+        spec.proposer,
+        "proposal-shipped",
+        spec.pr,
+        spec.issue,
+        "2",
+        "GSD",
+        `Proposer of PR #${spec.pr}`,
+      ),
+    );
+  }
+
+  const updated = appendRows([...baseLines], newRows);
+  writeFileSync(LEDGER_PATH, updated.join("\n") + "\n", "utf-8");
+  process.stdout.write(`Appended ${newRows.length} row(s) to GSD-LEDGER.md\n`);
+}
+
 interface LedgerCliArgs {
   pr: number;
   contributor: string;
@@ -121,6 +173,10 @@ interface LedgerCliArgs {
   proposer?: string;
   denomination?: string;
   notes?: string;
+  close?: boolean;
+  winner?: boolean;
+  runnerUpAmount?: string;
+  corrects?: number;
 }
 
 /** Validate a date cell is a structurally valid ISO yyyy-mm-dd date. */
@@ -215,7 +271,12 @@ function printSummary(entries: readonly LedgerEntry[]): void {
   for (const e of entries) {
     if (e.denomination.toUpperCase() !== "GSD") continue;
     const row = totals.get(e.contributor) ?? new Map<string, number>();
-    row.set(e.kind, (row.get(e.kind) ?? 0) + (Number.parseFloat(e.amount) || 0));
+    if (e.kind === "correction") {
+      // A correction reverses a prior award for this contributor: subtract.
+      row.set("correction", (row.get("correction") ?? 0) + (Number.parseFloat(e.amount) || 0));
+    } else {
+      row.set(e.kind, (row.get(e.kind) ?? 0) + (Number.parseFloat(e.amount) || 0));
+    }
     totals.set(e.contributor, row);
   }
 
@@ -240,7 +301,13 @@ function printSummary(entries: readonly LedgerEntry[]): void {
 
   for (const [name, row] of totals) {
     const perKind = KINDS.map((k) => String(row.get(k) ?? 0));
-    const total = [...row.values()].reduce((a, b) => a + b, 0);
+    // correction subtracts from the contributor's net total.
+    const corrected = row.get("correction") ?? 0;
+    const total =
+      [...row.entries()].reduce(
+        (acc, [k, v]) => (k === "correction" ? acc - v : acc + v),
+        0,
+      );
     process.stdout.write(line([name, ...perKind, String(total)]) + "\n");
   }
 }
@@ -260,9 +327,36 @@ function main(): void {
       validate: { type: "boolean" },
       format: { type: "string" },
       summary: { type: "boolean" },
+      close: { type: "boolean" },
+      winner: { type: "boolean" },
+      "runner-up-amount": { type: "string" },
+      corrects: { type: "string" },
     },
     strict: true,
   });
+
+  // Shared inputs + ledger state. Computed once up front so the --corrects,
+  // --close, and plain-append paths below all have them in scope.
+  const pr = values.pr;
+  const contributor = values.contributor;
+  const issue = values.issue;
+  const amount = values.amount;
+  const kind = values.kind;
+  const proposer = values.proposer;
+  const denomination = values.denomination ?? "GSD";
+  const notes = values.notes ?? "";
+
+  const content = readFileSync(LEDGER_PATH, "utf-8");
+  const lines = content.split("\n");
+  while (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  const existingEntries: LedgerEntry[] = parseLedger(content);
+  const lastNum =
+    existingEntries.length > 0
+      ? Math.max(...existingEntries.map((r) => r.index))
+      : 0;
+  const date = today();
 
   // The --validate flag is a standalone mode: read, check, report, exit.
   if (values.validate) {
@@ -287,14 +381,109 @@ function main(): void {
     return;
   }
 
-  const pr = values.pr;
-  const contributor = values.contributor;
-  const issue = values.issue;
-  const amount = values.amount;
-  const kind = values.kind;
-  const proposer = values.proposer;
-  const denomination = values.denomination ?? "GSD";
-  const notes = values.notes ?? "";
+  // --corrects N: append-only correction. Supersedes a mistaken row instead of
+  // rewriting it (the ledger is append-only by design). The correction row
+  // names the contributor whose award it reverses and the amount to subtract,
+  // so contributor totals reflect the correction without ever deleting history.
+  if (values.corrects !== undefined) {
+    const rowNum = Number.parseInt(values.corrects, 10);
+    if (!Number.isFinite(rowNum) || rowNum <= 0) {
+      fail("--corrects requires a positive row number");
+    }
+    if (!contributor) fail("--contributor is required for a correction (who is being corrected)");
+    if (!amount) fail("--amount is required for a correction (how much to reverse)");
+    const correctionNotes =
+      notes || `Correction: supersedes row ${rowNum} — award reversed for @${contributor}.`;
+    return writeAward({
+      lastNum,
+      date,
+      contributor,
+      kind: "correction",
+      pr: pr ?? "0",
+      issue: issue ?? "0",
+      amount,
+      denomination,
+      notes: correctionNotes,
+      proposer: undefined,
+    }, lines);
+  }
+
+  // ---- Bounty-aware close mode (issue #43) ----
+  // A bounty pays out ONCE per issue, not once per PR. When several PRs close
+  // the same bountied issue (a competition, or near-simultaneous merges), only
+  // the designated winner earns the full `bounty`; other serious entries earn a
+  // smaller `participation` amount. We never guess: the caller states whether
+  // this PR is the winner via --winner. A second full-value write is refused
+  // loudly rather than dropping an award silently.
+  if (values.close) {
+    if (!issue) fail("--issue is required in --close mode");
+    if (!pr) fail("--pr is required in --close mode");
+    if (!contributor) fail("--contributor is required in --close mode");
+    if (!amount) fail("--amount is required in --close mode");
+
+    const existing = parseLedger(content);
+    const awardForIssue = (k: string) =>
+      existing.find((e) => e.issue === String(issue) && e.kind === k);
+
+    if (values.winner) {
+      const prior = awardForIssue("bounty");
+      if (prior) {
+        // Idempotent: the winner is already recorded — nothing to do.
+        if (prior.pr === String(pr) && prior.contributor === contributor) {
+          process.stdout.write(
+            `Issue #${issue} already has its bounty award (row ${prior.index}); nothing to record.\n`,
+          );
+          return;
+        }
+        // Someone else already holds the bounty for this issue. Refuse to
+        // double-pay; the human must issue a correction if this is wrong.
+        fail(
+          `Issue #${issue} already has a bounty award (row ${prior.index}, ${prior.contributor}). ` +
+            `Refusing to write a second full-value row. If this PR is the correct winner, ` +
+            `supersede with --corrects ${prior.index}.`,
+        );
+      }
+      // Winner path: write the full bounty row (+ proposer row if given).
+      return writeAward({
+        lastNum,
+        date,
+        contributor,
+        kind: "bounty",
+        pr: String(pr),
+        issue: String(issue),
+        amount,
+        denomination,
+        notes: notes || `Winning entry for #${issue}`,
+        proposer,
+      }, lines);
+    }
+
+    // Non-winner close: a serious-but-losing entry. It earns `participation`,
+    // not the bounty amount. If a participation row already exists for this PR,
+    // it is idempotent (nothing to record) rather than a silent no-op failure.
+    const priorPart = existing.find(
+      (e) => e.issue === String(issue) && e.kind === "participation" && e.pr === String(pr),
+    );
+    if (priorPart) {
+      process.stdout.write(
+        `Issue #${issue} PR #${pr} already has a participation award (row ${priorPart.index}); nothing to record.\n`,
+      );
+      return;
+    }
+    const partAmount = values["runner-up-amount"] ?? "1";
+    return writeAward({
+      lastNum,
+      date,
+      contributor,
+      kind: "participation",
+      pr: String(pr),
+      issue: String(issue),
+      amount: partAmount,
+      denomination,
+      notes: notes || `Serious entry for #${issue}`,
+      proposer: undefined,
+    }, lines);
+  }
 
   if (!pr) fail("--pr is required");
   if (!contributor) fail("--contributor is required");
@@ -310,21 +499,6 @@ function main(): void {
     fail("--denomination must be GSD or USD");
   }
 
-  const content = readFileSync(LEDGER_PATH, "utf-8");
-  const lines = content.split("\n");
-  // Drop trailing blank lines so we control the final newline.
-  while (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-
-  // Reuse the shared parser for the authoritative row shape and numbering.
-  const existingEntries: LedgerEntry[] = parseLedger(content);
-  const lastNum =
-    existingEntries.length > 0
-      ? Math.max(...existingEntries.map((r) => r.index))
-      : 0;
-
-  const date = today();
   const newRows: string[] = [];
 
   newRows.push(
