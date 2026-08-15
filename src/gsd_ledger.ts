@@ -16,7 +16,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import { parseLedger, type LedgerEntry } from "./ledger.js";
+import { escapeCell, parseLedger, splitTableRow, type LedgerEntry } from "./ledger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/js/gsd_ledger.js -> repo root (two levels up)
@@ -40,6 +40,19 @@ function today(): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Validate that input parameters do not contain unescaped pipes or newlines
+ * that would desync table width or inject columns/rows.
+ */
+function assertSafeField(name: string, value: string): void {
+  if (/[\r\n]/.test(value)) {
+    fail(`Field "${name}" cannot contain newlines (found: ${JSON.stringify(value)})`);
+  }
+  if (value.includes("|")) {
+    fail(`Field "${name}" cannot contain unescaped table pipe delimiter "|" (found: ${JSON.stringify(value)})`);
+  }
 }
 
 function buildRow(
@@ -150,10 +163,11 @@ function validateLedger(content: string): void {
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i]!.trim();
     if (!trimmed.startsWith("|")) continue;
-    const cells = trimmed.slice(1, -1).split("|").map((c) => c.trim());
+    const cells = splitTableRow(trimmed);
     // Only treat 9-column rows with a numeric first cell as ledger entries.
+    if (!cells || cells.length !== 9) continue;
     const index = Number.parseInt(cells[0] ?? "", 10);
-    if (cells.length !== 9 || !Number.isFinite(index)) continue;
+    if (!Number.isFinite(index)) continue;
     rows.push({ line: i + 1, cells });
   }
 
@@ -245,6 +259,29 @@ function printSummary(entries: readonly LedgerEntry[]): void {
   }
 }
 
+/** Run self-test for table injection prevention and parsing */
+function runSelfTest(): void {
+  // Test 1: splitTableRow handles escaped pipes
+  const rowWithEscapedPipes = "| 1 | 2026-08-07 | @\\|x\\|y\\| | `bounty` | [#3](https://github.com/jflournoy/for-funsies/pull/3) | [#1](https://github.com/jflournoy/for-funsies/issues/1) | 1 | GSD | notes with \\| pipe |";
+  const parsed = splitTableRow(rowWithEscapedPipes);
+  if (!parsed || parsed.length !== 9) {
+    fail("SelfTest failed: splitTableRow did not preserve 9 columns with escaped pipes");
+  }
+
+  // Test 2: parseLedger unescapes correctly
+  const entries = parseLedger(rowWithEscapedPipes);
+  if (entries.length !== 1 || entries[0]?.contributor !== "@|x|y|") {
+    fail("SelfTest failed: parseLedger did not correctly unescape contributor handle");
+  }
+
+  // Test 3: Unescaped table pipes in input are detected
+  if (!/[\r\n]/.test("\n") || !"| x | y |".includes("|")) {
+    fail("SelfTest failed: assertion regex sanity check failed");
+  }
+
+  process.stdout.write("All ledger self-tests passed.\n");
+}
+
 function main(): void {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -260,9 +297,16 @@ function main(): void {
       validate: { type: "boolean" },
       format: { type: "string" },
       summary: { type: "boolean" },
+      selftest: { type: "boolean" },
     },
     strict: true,
   });
+
+  // --selftest: run internal verification suite
+  if (values.selftest) {
+    runSelfTest();
+    return;
+  }
 
   // The --validate flag is a standalone mode: read, check, report, exit.
   if (values.validate) {
@@ -302,6 +346,16 @@ function main(): void {
   if (!amount) fail("--amount is required");
   if (!kind) fail("--kind is required");
 
+  // Rejection check: reject any values that would desync table width or inject columns/rows
+  assertSafeField("pr", pr);
+  assertSafeField("contributor", contributor);
+  assertSafeField("issue", issue);
+  assertSafeField("amount", amount);
+  assertSafeField("kind", kind);
+  if (proposer) assertSafeField("proposer", proposer);
+  assertSafeField("denomination", denomination);
+  assertSafeField("notes", notes);
+
   if (!VALID_KINDS.has(kind)) {
     fail(`--kind must be one of: ${[...VALID_KINDS].join(", ")}`);
   }
@@ -328,7 +382,17 @@ function main(): void {
   const newRows: string[] = [];
 
   newRows.push(
-    buildRow(lastNum + 1, date, contributor, kind, pr, issue, amount, denomination, notes),
+    buildRow(
+      lastNum + 1,
+      date,
+      escapeCell(contributor),
+      kind,
+      escapeCell(pr),
+      escapeCell(issue),
+      escapeCell(amount),
+      escapeCell(denomination),
+      escapeCell(notes),
+    ),
   );
 
   if (proposer) {
@@ -336,13 +400,13 @@ function main(): void {
       buildRow(
         lastNum + 2,
         date,
-        proposer,
+        escapeCell(proposer),
         "proposal-shipped",
-        pr,
-        issue,
+        escapeCell(pr),
+        escapeCell(issue),
         "2",
         "GSD",
-        `Proposer of PR #${pr}`,
+        escapeCell(`Proposer of PR #${pr}`),
       ),
     );
   }

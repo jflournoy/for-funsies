@@ -35,10 +35,51 @@ function isAwardKind(value: string): value is AwardKind {
   return (AWARD_KINDS as readonly string[]).includes(value);
 }
 
+/** Unescape escaped markdown characters within table cells (like \| -> |). */
+export function unescapeCell(cell: string): string {
+  return cell.replace(/\\([\\|`*_{}[\]()#+\-.!])/g, "$1");
+}
+
+/** Escape markdown table characters in a string to preserve cell boundaries. */
+export function escapeCell(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").replace(/([\\|])/g, "\\$1");
+}
+
+/** Split a markdown table row considering backslash-escaped pipes. */
+export function splitTableRow(line: string): string[] | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|") || trimmed.length < 2) {
+    return null;
+  }
+  const inner = trimmed.slice(1, -1);
+  const cells: string[] = [];
+  let current = "";
+  let escaped = false;
+
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    if (escaped) {
+      current += char;
+      escaped = false;
+    } else if (char === "\\") {
+      current += char;
+      escaped = true;
+    } else if (char === "|") {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
 /** Strip the markdown link syntax the ledger uses for PR and issue cells. */
 function plain(cell: string): string {
-  const link = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
-  return (link?.[1] ?? cell).trim();
+  const unescaped = unescapeCell(cell.trim());
+  const link = /^\[([^\]]*)\]\([^)]*\)$/.exec(unescaped);
+  return (link?.[1] ?? unescaped).trim();
 }
 
 /** The only origin whose URLs may ever become a live `href`. */
@@ -79,8 +120,8 @@ export function parseLedger(markdown: string): LedgerEntry[] {
     const trimmed = line.trim();
     if (!trimmed.startsWith("|")) continue;
 
-    const cells = trimmed.slice(1, -1).split("|").map((c) => c.trim());
-    if (cells.length !== COLUMNS) continue;
+    const cells = splitTableRow(trimmed);
+    if (!cells || cells.length !== COLUMNS) continue;
 
     const index = Number.parseInt(plain(cells[0] ?? ""), 10);
     if (!Number.isFinite(index)) continue; // header, separator, or placeholder
