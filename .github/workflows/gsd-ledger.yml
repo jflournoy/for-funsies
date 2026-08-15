@@ -188,6 +188,7 @@ jobs:
           npm run --silent ledger -- "${ARGS[@]}"
 
       - name: Commit the award
+        id: commit
         if: steps.award.outputs.skip == 'false'
         env:
           PR: ${{ steps.award.outputs.pr }}
@@ -199,6 +200,7 @@ jobs:
           git add GSD-LEDGER.md
           if git diff --staged --quiet; then
             echo "Ledger unchanged."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "📒 Award GSD to @${CONTRIBUTOR} for PR #${PR}"
@@ -210,7 +212,8 @@ jobs:
           # commit on top of theirs is always the correct resolution.
           for attempt in 1 2 3; do
             if git push; then
-              echo "Recorded. The board will redeploy from main."
+              echo "Recorded. Triggering board redeploy."
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "Push rejected (attempt ${attempt}); rebasing onto origin/main."
@@ -218,3 +221,32 @@ jobs:
           done
           echo "::error::Could not push the ledger update after 3 attempts."
           exit 1
+
+      - name: Redeploy the board
+        # Trigger pages.yml via workflow_dispatch so the new award page is
+        # published immediately from the ledger commit, without waiting for an
+        # unrelated push to main.
+        #
+        # WHY THIS CANNOT LOOP:
+        # pages.yml only runs `build` and `deploy` jobs — it writes nothing to
+        # the repository and dispatches no further workflows. A deploy run
+        # therefore cannot re-enter gsd-ledger.yml, so no cycle is possible.
+        #
+        # WHY NOT `workflow_run`:
+        # A `workflow_run` trigger on pages.yml listening for gsd-ledger would
+        # fire on every push-to-main run of gsd-ledger, even the ones that skip
+        # because no bounty was found — producing a spurious deploy on every
+        # ordinary commit. The explicit dispatch here fires only when a new row
+        # was actually committed.
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/pages.yml/dispatches" \
+            -f ref=main
+          echo "Board redeploy dispatched."
+
