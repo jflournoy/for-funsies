@@ -288,6 +288,27 @@ async function main() {
   await writeFile(`${DIST}/garden.svg`, svg, "utf-8");
   console.log("Generated garden.svg: " + snapshot.build + " builds, " + commits.length + " commits, " + contributors.size + " contributors.");
 
+  // ── Interactive garden data ─────────────────────────────────────────
+  // Embed the GardenSnapshot the page needs to render the constellation
+  // client-side. The data is written into a <script type="application/json">
+  // element; JSON.stringify output is safe against HTML parsing as long as
+  // `</script` never appears in the raw bytes, so a brute-force escape is
+  // applied below.
+  const gardenDataJson = JSON.stringify(snapshot).replace(/<\/script/gi, "<\\/script");
+  let indexPath = `${DIST}/index.html`;
+  let indexHtml = await readFile(indexPath, "utf-8");
+  const marker = '<script type="application/json" id="garden-data"></script>';
+  if (indexHtml.includes(marker)) {
+    indexHtml = indexHtml.replace(
+      marker,
+      `<script type="application/json" id="garden-data">${gardenDataJson}</script>`
+    );
+    await writeFile(indexPath, indexHtml, "utf-8");
+    console.log("Embedded garden data (" + gardenDataJson.length + " bytes) into index.html.");
+  } else {
+    console.log("WARNING: garden-data marker not found in index.html; interactive garden will not load.");
+  }
+
   const files = await readdir(DIST, { recursive: true });
   console.log(`Built ${DIST}/ with ${files.length} entries${entries.length > 0 ? ` (${entries.length} award pages + contributors page)` : "."}`);
 }

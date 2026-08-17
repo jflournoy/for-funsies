@@ -8,6 +8,7 @@
 
 import { parseLedger, totalGsd } from "./ledger.js";
 import type { LedgerEntry } from "./ledger.js";
+import { initGarden } from "./garden-client.js";
 
 const LEDGER_URL = "./GSD-LEDGER.md";
 const GITHUB_BASE = "https://github.com/jflournoy/for-funsies";
@@ -57,6 +58,9 @@ async function main() {
       error instanceof Error ? error.message : "unknown error"
     }`;
   }
+
+  // Initialize the interactive garden after the ledger is set up
+  initGarden();
 }
 
 /** Render entries into a table body with GitHub links and row clickability. */
