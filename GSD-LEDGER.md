@@ -45,3 +45,4 @@ proposer. That is intended.
 | 14 | 2026-08-12 | @waterWang | `bounty` | 22 | 21 | 5 | GSD | Closed #21 |
 | 15 | 2026-08-13 | @CREATORRADHEY | `bounty` | 23 | 21 | 5 | GSD | Winning manifesto for #21 - THE DARE RELAY. Adopted as MANIFESTO.md. |
 | 16 | 2026-08-13 | @acruz6421-bot | `bounty` | 24 | 21 | 3 | GSD | Serious entry for #21 (1 GSD) plus 2 GSD - its prose is carried into MANIFESTO.md. |
+| 17 | 2026-08-17 | @abisaelautomation-sys | `bounty` | [#36](https://github.com/jflournoy/for-funsies/pull/36) | [#28](https://github.com/jflournoy/for-funsies/issues/28) | 2 | GSD | Closed #28 |
