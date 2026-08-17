@@ -83,10 +83,15 @@ def main() -> int:
         )
 
     # A ledger that already pays one contributor twice for one PR is the bug,
-    # realised. Key on (PR, contributor): a single PR legitimately produces two
-    # rows when it implements someone else's proposal — an `implementation` row
-    # for the author and a `proposal-shipped` row for the proposer. Those are
-    # different people, so they are not a double payment.
+    # realised. Two exemptions, both legitimate:
+    #
+    #   * A PR implementing someone else's proposal produces an
+    #     `implementation` row for the author and a `proposal-shipped` row for
+    #     the proposer. Different people, so we key on (PR, contributor).
+    #   * The ledger is append-only, so an erroneous award is undone by
+    #     appending a reversing row with a negative amount rather than by
+    #     editing history. A row that zeroes out or reverses an earlier one is
+    #     a correction, not a second payment.
     ledger = read("GSD-LEDGER.md")
     seen: dict[tuple[str, str], int] = {}
     paid_prs: set[str] = set()
@@ -94,9 +99,12 @@ def main() -> int:
         cells = [c.strip() for c in row.split("|")]
         if len(cells) < 8 or not cells[1].isdigit():
             continue
-        contributor, pr_cell = cells[3], cells[5]
+        contributor, pr_cell, amount = cells[3], cells[5], cells[7]
         m = re.search(r"#?(\d+)", pr_cell)
         if not m or m.group(1) == "0":
+            continue
+        # A negative amount reverses an earlier row; it never adds a payment.
+        if amount.startswith("-"):
             continue
         pr = m.group(1)
         paid_prs.add(pr)
@@ -105,7 +113,8 @@ def main() -> int:
             problems.append(
                 f"::error file=GSD-LEDGER.md,line={n}::{contributor} is paid twice "
                 f"for PR #{pr} (first at line {seen[key]}). The duplicate-award "
-                "guard did not fire."
+                "guard did not fire. If this row reverses an earlier award, give "
+                "it a negative amount so it reads as a correction."
             )
         else:
             seen[key] = n
