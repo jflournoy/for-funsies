@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { parseLedger, type LedgerEntry } from "./ledger.js";
+import { createAttestation, verifyAttestation } from "./attestation.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/js/gsd_ledger.js -> repo root (two levels up)
@@ -281,9 +282,41 @@ function main(): void {
       validate: { type: "boolean" },
       format: { type: "string" },
       summary: { type: "boolean" },
+      attest: { type: "boolean" },
+      verify: { type: "string" },
+      "key-id": { type: "string" },
+      "private-key": { type: "string" },
+      "public-key": { type: "string" },
     },
     strict: true,
   });
+
+  // The --attest mode: emit machine-readable signed balance statement
+  if (values.attest) {
+    const content = readFileSync(LEDGER_PATH, "utf-8");
+    const attestation = createAttestation(
+      content,
+      values["private-key"],
+      values["key-id"],
+    );
+    process.stdout.write(JSON.stringify(attestation, null, 2) + "\n");
+    return;
+  }
+
+  // The --verify <file> mode: check signature against public key committed under .well-known/
+  if (values.verify) {
+    const content = readFileSync(LEDGER_PATH, "utf-8");
+    const result = verifyAttestation(
+      values.verify,
+      content,
+      values["public-key"],
+    );
+    if (!result.valid) {
+      fail(`Attestation verification failed: ${result.error}`);
+    }
+    process.stdout.write("Attestation signature is VALID\n");
+    return;
+  }
 
   // The --validate flag is a standalone mode: read, check, report, exit.
   if (values.validate) {
