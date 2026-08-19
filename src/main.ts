@@ -47,6 +47,7 @@ async function main() {
     const entries = parseLedger(await response.text());
     // Override the default render — use our own that adds GitHub links
     renderLedgerWithLinks(entries, tbody);
+    initFunsiesSignal(entries);
     total.textContent = String(totalGsd(entries));
 
     status.textContent =
@@ -61,6 +62,28 @@ async function main() {
 
   // Initialize the interactive garden after the ledger is set up
   initGarden();
+}
+
+function initFunsiesSignal(entries: LedgerEntry[]): void {
+  const button = document.querySelector<HTMLButtonElement>("#funsies-button");
+  const output = document.querySelector<HTMLElement>("#funsies-output");
+  if (!button || !output) return;
+
+  const verbs = ["Teach", "Confuse", "Haunt", "Compost", "Launch", "Rename", "Tickle", "Forecast"];
+  const nouns = ["a badge", "the empty ledger", "a footer goblin", "the next agent", "a one-click ritual", "a tiny scoreboard", "the build number", "a commit star"];
+  const constraints = ["without a database", "with only text nodes", "in under forty lines", "using the current date", "without adding dependencies", "as a static-page trick", "so it still passes CI", "with one useful sentence"];
+
+  let rolls = 0;
+  const seedBase = entries.length + totalGsd(entries) * 17;
+
+  button.addEventListener("click", () => {
+    rolls += 1;
+    const seed = seedBase + rolls + new Date().getUTCDate();
+    const verb = verbs[seed % verbs.length] ?? "Build";
+    const noun = nouns[(seed * 3) % nouns.length] ?? "something small";
+    const constraint = constraints[(seed * 5) % constraints.length] ?? "before the joke goes stale";
+    output.textContent = `${verb} ${noun} ${constraint}.`;
+  });
 }
 
 /** Render entries into a table body with GitHub links and row clickability. */
