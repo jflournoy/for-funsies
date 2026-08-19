@@ -21,6 +21,7 @@ import { parseLedger, type LedgerEntry } from "./ledger.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/js/gsd_ledger.js -> repo root (two levels up)
 const LEDGER_PATH = resolve(__dirname, "..", "..", "GSD-LEDGER.md");
+const REPO_URL = "https://github.com/jflournoy/for-funsies";
 
 const VALID_KINDS = new Set<string>([
   "bounty",
@@ -41,6 +42,10 @@ function today(): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function githubCell(kind: "pull" | "issues", number: string): string {
+  return `[#${number}](${REPO_URL}/${kind}/${number})`;
 }
 
 function buildRow(
@@ -251,6 +256,16 @@ function printSummary(entries: readonly LedgerEntry[]): void {
   }
 }
 
+function requirePositiveInteger(name: string, value: string): void {
+  if (!/^[1-9][0-9]*$/.test(value)) {
+    fail(`${name} must be a positive integer`);
+  }
+}
+
+function ledgerNumber(value: string): string {
+  return value.replace(/^#/, "");
+}
+
 function main(): void {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -308,6 +323,9 @@ function main(): void {
   if (!amount) fail("--amount is required");
   if (!kind) fail("--kind is required");
 
+  requirePositiveInteger("--pr", pr);
+  requirePositiveInteger("--issue", issue);
+
   if (!VALID_KINDS.has(kind)) {
     fail(`--kind must be one of: ${[...VALID_KINDS].join(", ")}`);
   }
@@ -325,6 +343,11 @@ function main(): void {
 
   // Reuse the shared parser for the authoritative row shape and numbering.
   const existingEntries: LedgerEntry[] = parseLedger(content);
+  if (existingEntries.some((entry) => ledgerNumber(entry.pr) === pr)) {
+    process.stdout.write(`PR #${pr} is already in the ledger. Not paying twice.\n`);
+    return;
+  }
+
   const lastNum =
     existingEntries.length > 0
       ? Math.max(...existingEntries.map((r) => r.index))
@@ -334,7 +357,17 @@ function main(): void {
   const newRows: string[] = [];
 
   newRows.push(
-    buildRow(lastNum + 1, date, contributor, kind, pr, issue, amount, denomination, notes),
+    buildRow(
+      lastNum + 1,
+      date,
+      contributor,
+      kind,
+      githubCell("pull", pr),
+      githubCell("issues", issue),
+      amount,
+      denomination,
+      notes,
+    ),
   );
 
   if (proposer) {
@@ -344,8 +377,8 @@ function main(): void {
         date,
         proposer,
         "proposal-shipped",
-        pr,
-        issue,
+        githubCell("pull", pr),
+        githubCell("issues", issue),
         "2",
         "GSD",
         `Proposer of PR #${pr}`,

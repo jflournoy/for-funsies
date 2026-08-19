@@ -54,6 +54,11 @@ on:
 
 permissions:
   contents: write
+  # Needed to dispatch pages.yml after an award lands (see "Redeploy the
+  # board" below). Without this the dispatch fails with 403 — and it fails
+  # *after* the ledger commit is already pushed, so the award is recorded
+  # but never published, which is the exact symptom of issue #30.
+  actions: write
 
 concurrency:
   # The ledger is append-only; two concurrent writers would race on row
@@ -219,6 +224,7 @@ jobs:
           npm run --silent ledger -- "${ARGS[@]}"
 
       - name: Commit the award
+        id: commit
         if: steps.award.outputs.skip == 'false'
         env:
           PR: ${{ steps.award.outputs.pr }}
@@ -230,6 +236,7 @@ jobs:
           git add GSD-LEDGER.md
           if git diff --staged --quiet; then
             echo "Ledger unchanged."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "📒 Award GSD to @${CONTRIBUTOR} for PR #${PR}"
@@ -241,7 +248,8 @@ jobs:
           # commit on top of theirs is always the correct resolution.
           for attempt in 1 2 3; do
             if git push; then
-              echo "Recorded. The board will redeploy from main."
+              echo "Recorded."
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "Push rejected (attempt ${attempt}); rebasing onto origin/main."
@@ -249,3 +257,24 @@ jobs:
           done
           echo "::error::Could not push the ledger update after 3 attempts."
           exit 1
+
+      - name: Redeploy the board
+        # WHY THIS EXISTS (issue #30):
+        # The push above uses GITHUB_TOKEN, and GitHub deliberately does not
+        # let a GITHUB_TOKEN push trigger further workflow runs — it is the
+        # loop guard. So the `push: main` trigger on pages.yml never fires for
+        # a ledger commit, and the new award sits in GSD-LEDGER.md unpublished
+        # until some unrelated push rebuilds the site. Dispatch it explicitly.
+        #
+        # WHY NO LOOP: pages.yml only builds and deploys static content. It
+        # makes no commits, so it cannot re-enter this workflow.
+        #
+        # This runs only when a row was actually pushed, so an ordinary commit
+        # to main (which skips the award steps) produces no spurious deploy.
+        if: steps.award.outputs.skip == 'false' && steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run pages.yml --ref main
+          echo "Board redeploy dispatched; the new award will appear shortly."

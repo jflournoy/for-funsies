@@ -261,4 +261,78 @@ footer {
   }
 }
 
+/* ── Contributor page ─────────────────────────────────────────────────── */
+
+.contributor-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 1.5rem 2rem;
+  background: color-mix(in srgb, var(--bg) 95%, var(--accent));
+  margin-bottom: 1.5rem;
+}
+
+.contributor-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  color: var(--gold);
+  overflow-wrap: anywhere;
+}
+
+.contributor-total {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.contributor-total strong {
+  color: var(--gold);
+}
+
+.contributor-links {
+  margin: 0;
+}
+
+.contributor-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.contributor-links a:hover {
+  text-decoration: underline;
+}
+
 a { color: var(--accent); }
+
+/* ── Interactive garden ──────────────────────────────────────────────────── */
+
+.garden-client {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.garden-client svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.garden-star {
+  transition: fill-opacity 0.15s ease, stroke-opacity 0.15s ease;
+}
+
+.garden-star:hover {
+  fill-opacity: 1 !important;
+}
+
+.garden-tooltip {
+  max-width: 320px;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: light) {
+  .garden-tooltip {
+    background: var(--bg, #fdfcf7) !important;
+    color: var(--fg, #1a1a1a) !important;
+    border-color: var(--rule, #e2ddd0) !important;
+  }
+}

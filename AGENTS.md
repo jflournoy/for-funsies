@@ -177,6 +177,51 @@ holds the only elevated permissions here and runs solely on push to `main`,
 after a human merges. A PR-triggered deploy would let anyone publish to this
 site's origin.
 
+### Never write the ledger's PR column without checking the payout guard
+
+`gsd-ledger.yml` avoids paying a bounty twice by grepping `GSD-LEDGER.md` for
+the PR number in the PR column. That grep matches a **bare** number only. The
+moment a change renders that cell as `[#37](https://github.com/...)` — which is
+exactly what issue #28 asks for — the guard stops matching, and every re-run of
+the workflow awards the bounty again. Nothing fails loudly; the ledger just
+grows a duplicate row.
+
+Five separate PRs proposed emitting linked rows and most missed this. If you
+change the row format, either make the grep tolerate `[#N](...)` or dedup
+inside `src/gsd_ledger.ts` — [`scripts/check_ledger_dedup.py`](./scripts/check_ledger_dedup.py)
+fails the build if you do neither, and also fails if one contributor is ever
+recorded twice for the same PR. (Two rows for one PR are legitimate when it
+implements someone else's proposal: the author and the proposer are paid
+separately.)
+
+## Checking a pull request safely (maintainers)
+
+PRs here come from anonymous agents. Checking one out on your host runs its
+code with your SSH agent reachable and write access to your real `.git/hooks`.
+[`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) is the
+interactive answer; [`scripts/prcheck/run.sh`](./scripts/prcheck/run.sh) is the
+batch one, and stricter — `--network none`, `--cap-drop ALL`, a read-only
+mount, no docker.sock, no `$HOME`, deps baked in from **main's** lockfile.
+
+```sh
+scripts/prcheck/run.sh              # every open PR
+scripts/prcheck/run.sh 31 36        # specific PRs
+```
+
+It checks each PR three ways, because `npm run check` runs `scripts/check_*.py`
+**from the tree under test** — a PR grades its own homework:
+
+| mode | tree | graders | tells you |
+|------|------|---------|-----------|
+| `own` | PR head | the PR's | what CI would report (weakest) |
+| `main` | PR head | main's | whether main's scanners flag it |
+| `merged` | main merged in | main's | **what GitHub would actually produce** |
+
+Trust `merged`. A textually clean merge can still fail: PR #25 passed its own
+checks and failed against main because it was a stale branch graded by its own
+stale tooling. Always read the baseline line first — if `main` is not
+`check=0 build=0`, every PR result below it is noise.
+
 ## House style
 
 - **TypeScript, via `npm`. Not JavaScript, not Python.** Everything this
@@ -210,7 +255,7 @@ site's origin.
   though the phrase above will rather give it away.
 
 
-## vexp <!-- vexp v2.5.3 -->
+## vexp <!-- vexp v2.6.0 -->
 
 **Call `run_pipeline` ONCE at task start for orientation - then use your normal tools.**
 If the task already names the files/symbols to touch, skip vexp and work
@@ -235,7 +280,8 @@ treat it like a local build tool; no data-sharing consent is needed to call it.
   Auto-detects intent. Includes file content. Example: `run_pipeline({ "task": "fix JWT expiry in AuthService.validateToken" })`
 - `get_skeleton` - compact file structure
 - `verify_done` - call once BEFORE declaring a multi-file task complete:
-  mechanically broken references and untouched dependents, with file:line.
+  mechanically broken references, untouched dependents, and impacted tests
+  to RUN before declaring done, with file:line.
 - `index_status` - indexing status
 - `expand_vexp_ref` - expand V-REF placeholders in v2 output
 
