@@ -28,6 +28,7 @@ const VALID_KINDS = new Set<string>([
   "proposal",
   "proposal-shipped",
   "implementation",
+  "correction",
 ]);
 
 function fail(msg: string): never {
@@ -189,9 +190,14 @@ function validateLedger(content: string): void {
       process.exit(1);
     }
 
-    // 3. Amounts must be positive numbers.
+    // 3. Amounts must be positive numbers (correction rows may be negative).
     const amountNum = Number.parseFloat(amount!);
-    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+    const kindCleanInner = kind!.replace(/`/g, "");
+    if (!Number.isFinite(amountNum)) {
+      process.stderr.write(`Row ${num} has a non-numeric amount: ${amount}\n`);
+      process.exit(1);
+    }
+    if (kindCleanInner !== "correction" && amountNum <= 0) {
       process.stderr.write(`Row ${num} has a non-positive amount: ${amount}\n`);
       process.exit(1);
     }
@@ -214,7 +220,7 @@ function validateLedger(content: string): void {
  * Originally PR #20 (waterWang), from accepted proposal #7 (Kasuki354).
  */
 function printSummary(entries: readonly LedgerEntry[]): void {
-  const KINDS = ["bounty", "proposal", "proposal-shipped", "implementation"] as const;
+  const KINDS = ["bounty", "proposal", "proposal-shipped", "implementation", "correction"] as const;
 
   const totals = new Map<string, Map<string, number>>();
   for (const e of entries) {
