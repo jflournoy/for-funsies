@@ -28,9 +28,21 @@
         <abbr title="Unsung Sycophant Dividend">USD</abbr> at the prevailing
         rate, which is set by vibes and is not published.
       </p>
-      <p class="total">
-        <strong id="total-gsd">0</strong> GSD in circulation
-      </p>
+      <div class="total-line">
+        <p class="total">
+          <strong id="total-gsd">0</strong> GSD in circulation
+        </p>
+        <button
+          id="activity-signal"
+          class="activity-signal"
+          type="button"
+          aria-label="Ping recent activity"
+          title="Ping recent activity"
+        >
+          <span aria-hidden="true">⌁</span>
+        </button>
+        <span id="activity-whisper" class="activity-whisper" aria-live="polite"></span>
+      </div>
     </header>
 
     <main>

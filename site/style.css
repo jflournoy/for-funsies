@@ -81,13 +81,102 @@ h1 a.header-link:hover {
 }
 
 .total {
-  margin: 0 0 2.5rem;
+  margin: 0;
   font-size: 1.1rem;
 }
 
 .total strong {
   color: var(--gold);
   font-size: 1.6rem;
+}
+
+.total-line {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  margin: 0 0 2.5rem;
+  gap: 0.75rem;
+}
+
+.activity-signal {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font: 1.35rem/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.activity-signal:hover,
+.activity-signal:focus-visible,
+.activity-signal[data-charged="true"] {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.activity-signal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.activity-whisper {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+body[data-activity-signal="ripple"] .table-wrap {
+  animation: signal-ripple 0.8s ease-out 2;
+}
+
+body[data-activity-signal="tilt"] tbody tr:nth-child(odd) {
+  animation: signal-tilt 0.7s ease-in-out alternate 2;
+}
+
+body[data-activity-signal="orbit"] .garden-client svg {
+  animation: signal-orbit 2.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body[data-activity-signal="quiet"] .garden-star {
+  animation: signal-quiet 1.2s ease-in-out alternate 2;
+}
+
+@keyframes signal-ripple {
+  50% { box-shadow: 0 0 0 6px var(--accent-dim); }
+}
+
+@keyframes signal-tilt {
+  to { transform: translateX(0.35rem); }
+}
+
+@keyframes signal-orbit {
+  50% { transform: rotate(1.5deg) scale(0.99); }
+}
+
+@keyframes signal-quiet {
+  to { fill-opacity: 0.12; }
+}
+
+@media (max-width: 36rem) {
+  .total-line { flex-wrap: wrap; }
+  .activity-whisper { flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-activity-signal] .table-wrap,
+  body[data-activity-signal] tbody tr,
+  body[data-activity-signal] .garden-client svg,
+  body[data-activity-signal] .garden-star {
+    animation: none;
+  }
 }
 
 #status {

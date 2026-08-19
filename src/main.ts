@@ -12,6 +12,72 @@ import { initGarden } from "./garden-client.js";
 
 const LEDGER_URL = "./GSD-LEDGER.md";
 const GITHUB_BASE = "https://github.com/jflournoy/for-funsies";
+const SIGNAL_MODES = ["ripple", "tilt", "orbit", "quiet"] as const;
+const SIGNAL_PHRASES = [
+  "the newest commit hums back",
+  "the ledger briefly remembers gravity",
+  "recent activity has excellent timing",
+  "the board pretends this was normal",
+] as const;
+
+function hashSignal(value: string): number {
+  let hash = 2166136261;
+  for (const char of value) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function latestCommitHash(): string {
+  const data = document.querySelector<HTMLElement>("#garden-data");
+  if (!data?.textContent) return "empty-board";
+  try {
+    const snapshot: unknown = JSON.parse(data.textContent);
+    if (
+      typeof snapshot === "object" &&
+      snapshot !== null &&
+      "latestHash" in snapshot &&
+      typeof snapshot.latestHash === "string"
+    ) {
+      return snapshot.latestHash;
+    }
+  } catch {
+    // A malformed snapshot should not disable the rest of the board.
+  }
+  return "empty-board";
+}
+
+function initActivitySignal(entries: LedgerEntry[]): void {
+  const button = document.querySelector<HTMLButtonElement>("#activity-signal");
+  const whisper = document.querySelector<HTMLElement>("#activity-whisper");
+  if (!button || !whisper) return;
+
+  const latestEntry = entries.at(-1);
+  const seedSource = latestEntry
+    ? `${latestEntry.index}:${latestEntry.kind}:${latestEntry.contributor}`
+    : latestCommitHash();
+  const seed = hashSignal(seedSource);
+  let ping = 0;
+  let settleTimer: number | undefined;
+
+  button.addEventListener("click", () => {
+    const mode = SIGNAL_MODES[(seed + ping) % SIGNAL_MODES.length] ?? "ripple";
+    const phrase = SIGNAL_PHRASES[(seed + ping) % SIGNAL_PHRASES.length] ?? SIGNAL_PHRASES[0];
+    ping += 1;
+
+    document.body.dataset.activitySignal = mode;
+    whisper.textContent = phrase;
+    button.dataset.charged = "true";
+
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(() => {
+      delete document.body.dataset.activitySignal;
+      delete button.dataset.charged;
+      whisper.textContent = "";
+    }, 2400);
+  });
+}
 
 /** Extract the PR/issue number from a markdown cell like `[#3](https://...)`. */
 function extractNumber(cell: string): string | null {
@@ -53,6 +119,8 @@ async function main() {
       entries.length === 0
         ? "The ledger is empty. The first row is worth 1 GSD and is unclaimed."
         : `${entries.length} award${entries.length === 1 ? "" : "s"} issued.`;
+
+    initActivitySignal(entries);
   } catch (error) {
     status.textContent = `Could not load the ledger: ${
       error instanceof Error ? error.message : "unknown error"
