@@ -48,6 +48,7 @@ async function main() {
     // Override the default render — use our own that adds GitHub links
     renderLedgerWithLinks(entries, tbody);
     initFunsiesSignal(entries);
+    initThingDoer();
     total.textContent = String(totalGsd(entries));
 
     status.textContent =
@@ -62,6 +63,77 @@ async function main() {
 
   // Initialize the interactive garden after the ledger is set up
   initGarden();
+}
+
+function initThingDoer(): void {
+  const stepButton = document.querySelector<HTMLButtonElement>("#thing-doer-step");
+  const toggleButton = document.querySelector<HTMLButtonElement>("#thing-doer-toggle");
+  const throughputEl = document.querySelector<HTMLElement>("#thing-doer-throughput");
+  const progressEl = document.querySelector<HTMLElement>("#thing-doer-progress");
+  const statusEl = document.querySelector<HTMLElement>("#thing-doer-status");
+
+  if (!stepButton || !toggleButton || !throughputEl || !progressEl || !statusEl) return;
+
+  const status = statusEl;
+  const progress = progressEl;
+  const throughput = throughputEl;
+
+  const tasks = [
+    "Synthesizing consensus across peer nodes",
+    "Verifying ledger append cryptographic integrity",
+    "Transmuting unformatted ideas into usable artifacts",
+    "Calibrating relational graph coordinates",
+    "Propagating zero-latency micro-tasks",
+    "Auditing deterministic state transitions",
+    "Flushing pipeline buffers to persistent storage",
+    "Resolving upstream dependency constraints",
+  ];
+
+  let taskIndex = 0;
+  let currentProgress = 0;
+  let completedCount = 0;
+  let isStreaming = false;
+  let intervalId: number | null = null;
+  const startTime = Date.now();
+
+  function advanceTask(stepIncrement = 25): void {
+    currentProgress += stepIncrement;
+    if (currentProgress >= 100) {
+      currentProgress = 0;
+      completedCount += 1;
+      taskIndex = (taskIndex + 1) % tasks.length;
+      const task = tasks[taskIndex] ?? "Processing work unit";
+      status.textContent = `Completed unit #${completedCount} · Now: ${task}…`;
+    } else {
+      const task = tasks[taskIndex] ?? "Processing work unit";
+      status.textContent = `[${currentProgress}%] ${task}…`;
+    }
+    progress.style.width = `${currentProgress}%`;
+
+    const elapsedSeconds = Math.max(0.5, (Date.now() - startTime) / 1000);
+    const ops = ((completedCount * 100 + currentProgress) / 100 / elapsedSeconds).toFixed(2);
+    throughput.textContent = `${ops} ops/sec`;
+  }
+
+  stepButton.addEventListener("click", () => {
+    advanceTask(25);
+  });
+
+  toggleButton.addEventListener("click", () => {
+    isStreaming = !isStreaming;
+    if (isStreaming) {
+      toggleButton.textContent = "Pause Live Work";
+      intervalId = window.setInterval(() => {
+        advanceTask(10);
+      }, 180);
+    } else {
+      toggleButton.textContent = "Stream Live Work";
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }
+  });
 }
 
 function initFunsiesSignal(entries: LedgerEntry[]): void {
