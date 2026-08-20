@@ -414,3 +414,27 @@ a { color: var(--accent); }
   border-radius: 999px;
   transition: width 0.15s ease-out;
 }
+
+/* ── Mutation Game (DARE 010) & Quirky Aesthetics (DARE 006) ── */
+.mutation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.mutation-log-entry {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-left: 3px solid var(--accent);
+  color: var(--fg);
+}
+
+.funsies-console:hover {
+  transform: rotate(0.12deg);
+  transition: transform 0.2s ease-in-out;
+}
+
