@@ -381,3 +381,21 @@ a { color: var(--accent); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+
+/* ── DARE 006: Deliberate strange visual quirk ────────────────────────── */
+.table-wrap {
+  transform: rotate(-0.35deg);
+  border-radius: 3px;
+  box-shadow: 2px 3px 0 color-mix(in srgb, var(--rule) 75%, transparent);
+  transition: transform 0.2s ease;
+}
+
+.table-wrap:hover {
+  transform: rotate(0deg);
+}
+
+.funsies-console {
+  transform: rotate(0.4deg);
+  border-style: dashed;
+}
