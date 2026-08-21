@@ -117,3 +117,4 @@ that did not previously have a first row.
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+# bounty-fix-ref: https://github.com/jflournoy/for-funsies/issues/60
