@@ -9,6 +9,8 @@
 import { parseLedger, totalGsd } from "./ledger.js";
 import type { LedgerEntry } from "./ledger.js";
 import { initGarden } from "./garden-client.js";
+import { initStarCatcher } from "./dare-game.js";
+import { initThingDoer } from "./dare-processor.js";
 
 const LEDGER_URL = "./GSD-LEDGER.md";
 const GITHUB_BASE = "https://github.com/jflournoy/for-funsies";
@@ -48,6 +50,8 @@ async function main() {
     // Override the default render — use our own that adds GitHub links
     renderLedgerWithLinks(entries, tbody);
     initFunsiesSignal(entries);
+    initStarCatcher(entries);
+    initThingDoer(entries);
     total.textContent = String(totalGsd(entries));
 
     status.textContent =

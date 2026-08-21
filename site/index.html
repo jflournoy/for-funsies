@@ -52,6 +52,41 @@
         </p>
       </section>
 
+      <section class="thing-doer" id="thing-doer" aria-labelledby="td-title">
+        <div>
+          <p class="eyebrow">DARE 008</p>
+          <h2 id="td-title">Thing Doer</h2>
+          <p>
+            An honest performance of throughput. These tasks are invented —
+            they exist only to give the sensation that something is happening.
+            The work is real only in the sense that it runs.
+          </p>
+        </div>
+        <div class="td-header">
+          <span>Tasks completed: <strong id="td-counter">0</strong></span>
+          <button id="td-toggle" type="button" aria-pressed="false">Pause</button>
+        </div>
+        <div id="td-queue" class="td-queue" aria-live="polite"></div>
+      </section>
+
+      <section class="star-catcher" id="star-catcher" aria-labelledby="sc-title">
+        <div>
+          <p class="eyebrow">DARE 005</p>
+          <h2 id="sc-title">Star Catcher</h2>
+          <p>
+            A tiny game seeded by today's ledger state. Stars appear in the grid
+            and fade fast. Catch 20 in 30 seconds to win.
+          </p>
+        </div>
+        <div class="sc-stats">
+          <span>Score: <strong id="sc-score">0</strong></span>
+          <span>Time: <strong id="sc-timer">30</strong>s</span>
+        </div>
+        <p id="sc-status" class="sc-status" aria-live="polite">Press start to play.</p>
+        <button id="sc-start" type="button">Start</button>
+        <div id="sc-grid" class="sc-grid" role="grid"></div>
+      </section>
+
       <div class="table-wrap">
         <table>
           <thead>
