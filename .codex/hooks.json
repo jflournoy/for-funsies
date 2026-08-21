@@ -1,13 +1,13 @@
 {
-  "UserPromptSubmit": [
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash \"/home/jflournoy/code/for-funsies/.codex/vexp-hint.sh\"",
-          "timeout": 5
-        }
-      ]
-    }
-  ]
+	"UserPromptSubmit": [
+		{
+			"hooks": [
+				{
+					"type": "command",
+					"command": "bash \"/home/jflournoy/code/for-funsies/.codex/vexp-hint.sh\"",
+					"timeout": 5
+				}
+			]
+		}
+	]
 }
