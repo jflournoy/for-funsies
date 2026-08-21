@@ -381,3 +381,83 @@ a { color: var(--accent); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+
+/* Star Catcher game (DARE 005) */
+.star-catcher {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 8px;
+  background: var(--surface, #f9f9f9);
+}
+
+.sc-stats {
+  display: flex;
+  gap: 2rem;
+  font-size: 1.1rem;
+  margin: 0.75rem 0;
+}
+
+.sc-status {
+  font-style: italic;
+  color: var(--muted, #666);
+  margin: 0.5rem 0;
+}
+
+#sc-start {
+  padding: 0.5rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  border: 2px solid var(--accent, #333);
+  background: transparent;
+  color: var(--ink, #333);
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+#sc-start:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sc-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  max-width: 320px;
+  aspect-ratio: 1;
+}
+
+.sc-cell {
+  aspect-ratio: 1;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  background: var(--bg, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.sc-cell.has-star {
+  background: #ffd700;
+  cursor: pointer;
+  border-color: #b8860b;
+}
+
+.sc-cell.has-star::after {
+  content: "\2605";
+}
+
+.sc-cell.caught {
+  background: #90ee90;
+  border-color: #228b22;
+}
+
+.sc-cell.missed {
+  background: #ffcccb;
+  border-color: #cd5c5c;
+}
