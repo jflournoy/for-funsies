@@ -10,6 +10,7 @@ import { parseLedger, totalGsd } from "./ledger.js";
 import type { LedgerEntry } from "./ledger.js";
 import { initGarden } from "./garden-client.js";
 import { initRelayGraph } from "./relay-graph.js";
+import { initMutationGame } from "./mutation-game.js";
 
 const LEDGER_URL = "./GSD-LEDGER.md";
 const GITHUB_BASE = "https://github.com/jflournoy/for-funsies";
@@ -62,7 +63,7 @@ async function main() {
   }
 
   // Initialize the interactive garden after the ledger is set up
-  initRelayGraph();
+  initMutationGame(initRelayGraph());
   initGarden();
 }
 

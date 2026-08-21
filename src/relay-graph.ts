@@ -70,22 +70,22 @@ function link(label: string, href: string): HTMLAnchorElement {
   return anchor;
 }
 
-export function initRelayGraph(): void {
+export function initRelayGraph(): RelayNode[] {
   const root = document.querySelector<HTMLElement>("#relay-graph");
   const data = document.querySelector<HTMLScriptElement>("#relay-data");
-  if (!root || !data) return;
+  if (!root || !data) return [];
 
   let snapshot: RelaySnapshot;
   try {
     snapshot = JSON.parse(data.textContent ?? "null") as RelaySnapshot;
   } catch {
     root.textContent = "Relay data could not be read.";
-    return;
+    return [];
   }
   const nodes = normalizeRelay(snapshot);
   if (nodes.length === 0) {
     root.textContent = "No completed relay history is available yet.";
-    return;
+    return [];
   }
 
   const byNumber = new Map(nodes.map((node) => [node.number, node]));
@@ -161,4 +161,5 @@ export function initRelayGraph(): void {
     : "Offline fallback derived from the append-only GSD ledger.";
   root.replaceChildren(rail, detail, source);
   select(selected);
+  return nodes;
 }
