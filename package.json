@@ -8,8 +8,10 @@
   "type": "module",
   "scripts": {
     "ledger": "node dist/js/gsd_ledger.js",
+    "dare-relay": "node dist/js/dare_relay.js",
     "build": "tsc && node scripts/build_site.js",
     "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test dist/js/*.test.js",
     "check": "npm run typecheck && python3 scripts/check_workflow_yaml.py && python3 scripts/check_workflow_injection.py && python3 scripts/check_xss.py && python3 scripts/check_ledger_dedup.py"
   },
   "devDependencies": {

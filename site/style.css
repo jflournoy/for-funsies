@@ -381,3 +381,213 @@ a { color: var(--accent); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ── Playable DARE relay ─────────────────────────────────────────────── */
+
+.relay {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+.relay-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.relay-heading h2,
+.relay-heading p {
+  margin: 0;
+}
+
+.relay-heading > p,
+.relay-source {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.relay-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--rule);
+}
+
+.relay-node {
+  position: relative;
+  min-width: 0;
+  height: 3rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.relay-node::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -0.8rem;
+  width: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+.relay-node:last-child::after {
+  display: none;
+}
+
+.relay-node.pending {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.relay-node.cracked {
+  border-color: #b42318;
+  background: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, #b42318 14%, transparent) 7px 9px);
+  color: #b42318;
+}
+
+.relay-node[aria-selected="true"],
+.relay-node:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.relay-detail {
+  min-height: 9rem;
+  padding: 1rem 0 0;
+}
+
+.relay-detail h3,
+.relay-detail p {
+  margin: 0 0 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.relay-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.relay-relations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.relay-relations button {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.35rem 0.55rem;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.relay-source {
+  margin: 0.75rem 0 0;
+}
+
+.mutation-game {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.mutation-controls {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1fr) auto auto auto;
+  gap: 0.5rem;
+}
+
+.mutation-controls select,
+.mutation-controls button {
+  min-width: 0;
+  height: 2.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.mutation-controls button {
+  padding-inline: 0.65rem;
+  cursor: pointer;
+}
+
+.mutation-controls button:first-of-type {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.mutation-controls :focus-visible,
+.mutation-stage:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.mutation-prompt {
+  min-height: 1.6rem;
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.mutation-stage {
+  width: 100%;
+  height: 7rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg) 88%, var(--accent) 12%);
+  color: var(--accent);
+  font: 700 3rem/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  cursor: pointer;
+}
+
+.mutation-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5rem 6rem;
+  gap: 0.75rem;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.mutation-stats progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 36rem) {
+  .relay-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .relay-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mutation-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mutation-controls select {
+    grid-column: span 3;
+  }
+}

@@ -54,6 +54,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   # Needed to dispatch pages.yml after an award lands (see "Redeploy the
   # board" below). Without this the dispatch fails with 403 — and it fails
   # *after* the ledger commit is already pushed, so the award is recorded
@@ -222,6 +223,16 @@ jobs:
           [ -n "$PROPOSER" ] && ARGS+=(--proposer "@$PROPOSER")
           [ -n "$NOTES" ] && ARGS+=(--notes "$NOTES")
           npm run --silent ledger -- "${ARGS[@]}"
+
+      - name: Surface DARE relay debt
+        if: steps.award.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.award.outputs.pr }}
+          ISSUE: ${{ steps.award.outputs.issue }}
+        run: |
+          set -euo pipefail
+          npm run --silent dare-relay -- --repo "$GITHUB_REPOSITORY" --pr "$PR" --issue "$ISSUE"
 
       - name: Commit the award
         id: commit
