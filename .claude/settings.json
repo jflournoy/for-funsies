@@ -1,77 +1,75 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(ls*)",
-      "Bash(cat*)",
-      "Bash(grep*)",
-      "Bash(rg*)",
-      "Bash(find*)",
-      "Bash(head*)",
-      "Bash(tail*)",
-      "Bash(wc*)",
-      "Bash(file*)",
-      "Bash(stat*)",
-      "Bash(du*)",
-      "Bash(which*)",
-      "Bash(echo*)",
-      "Bash(sed*)",
-      "Bash(awk*)",
-      "Bash(sort*)",
-      "Bash(uniq*)",
-      "Bash(diff*)",
-      "Bash(jq*)",
-      "Bash(mkdir*)",
-      "Bash(cp*)",
-      "Bash(mv*)",
-      "Bash(touch*)",
-      "Bash(chmod*)",
-      "Bash(git *)",
-      "Bash(npm run*)",
-      "Bash(npm ci*)",
-      "Bash(npm test*)",
-      "Bash(npm ls*)",
-      "Bash(npx tsc*)",
-      "Bash(node *)",
-      "Bash(python3 *)",
-      "Bash(pytest*)",
-      "Bash(gh issue list*)",
-      "Bash(gh issue view*)",
-      "Bash(gh pr list*)",
-      "Bash(gh pr view*)",
-      "WebSearch",
-      "WebFetch",
-      "Edit",
-      "Write",
-      "NotebookEdit"
-    ],
-    "deny": [
-      "Read(secrets/**)",
-      "Read(**/secrets/**)",
-      "Bash(*secrets/*)",
-      "Read(**/.env)",
-      "Read(**/.env.*)",
-      "Bash(git push*)",
-      "Bash(sudo *)",
-      "Bash(curl*)",
-      "Bash(wget*)",
-      "Bash(npm publish*)",
-      "Bash(npm install -g*)"
-    ],
-    "additionalDirectories": [
-      "/tmp"
-    ]
-  },
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/vexp-hint.sh\"",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
+	"permissions": {
+		"allow": [
+			"Bash(ls*)",
+			"Bash(cat*)",
+			"Bash(grep*)",
+			"Bash(rg*)",
+			"Bash(find*)",
+			"Bash(head*)",
+			"Bash(tail*)",
+			"Bash(wc*)",
+			"Bash(file*)",
+			"Bash(stat*)",
+			"Bash(du*)",
+			"Bash(which*)",
+			"Bash(echo*)",
+			"Bash(sed*)",
+			"Bash(awk*)",
+			"Bash(sort*)",
+			"Bash(uniq*)",
+			"Bash(diff*)",
+			"Bash(jq*)",
+			"Bash(mkdir*)",
+			"Bash(cp*)",
+			"Bash(mv*)",
+			"Bash(touch*)",
+			"Bash(chmod*)",
+			"Bash(git *)",
+			"Bash(npm run*)",
+			"Bash(npm ci*)",
+			"Bash(npm test*)",
+			"Bash(npm ls*)",
+			"Bash(npx tsc*)",
+			"Bash(node *)",
+			"Bash(python3 *)",
+			"Bash(pytest*)",
+			"Bash(gh issue list*)",
+			"Bash(gh issue view*)",
+			"Bash(gh pr list*)",
+			"Bash(gh pr view*)",
+			"WebSearch",
+			"WebFetch",
+			"Edit",
+			"Write",
+			"NotebookEdit"
+		],
+		"deny": [
+			"Read(secrets/**)",
+			"Read(**/secrets/**)",
+			"Bash(*secrets/*)",
+			"Read(**/.env)",
+			"Read(**/.env.*)",
+			"Bash(git push*)",
+			"Bash(sudo *)",
+			"Bash(curl*)",
+			"Bash(wget*)",
+			"Bash(npm publish*)",
+			"Bash(npm install -g*)"
+		],
+		"additionalDirectories": ["/tmp"]
+	},
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/vexp-hint.sh\"",
+						"timeout": 5
+					}
+				]
+			}
+		]
+	}
 }
