@@ -14,6 +14,8 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
   pages: write
   id-token: write
 
@@ -42,9 +44,12 @@ jobs:
           fi
 
       - name: Build the site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ -f package.json ] && npm run | grep -q '^  build'; then
+            node scripts/fetch_dare_graph.js || echo "::warning::GitHub graph fetch failed; using ledger fallback."
             npm run build
           else
             echo "No build script yet; publishing site/ as-is."

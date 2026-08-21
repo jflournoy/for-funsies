@@ -381,3 +381,131 @@ a { color: var(--accent); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ── Playable DARE relay ─────────────────────────────────────────────── */
+
+.relay {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+.relay-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.relay-heading h2,
+.relay-heading p {
+  margin: 0;
+}
+
+.relay-heading > p,
+.relay-source {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.relay-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--rule);
+}
+
+.relay-node {
+  position: relative;
+  min-width: 0;
+  height: 3rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.relay-node::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -0.8rem;
+  width: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+.relay-node:last-child::after {
+  display: none;
+}
+
+.relay-node.pending {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.relay-node.cracked {
+  border-color: #b42318;
+  background: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, #b42318 14%, transparent) 7px 9px);
+  color: #b42318;
+}
+
+.relay-node[aria-selected="true"],
+.relay-node:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.relay-detail {
+  min-height: 9rem;
+  padding: 1rem 0 0;
+}
+
+.relay-detail h3,
+.relay-detail p {
+  margin: 0 0 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.relay-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.relay-relations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.relay-relations button {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.35rem 0.55rem;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.relay-source {
+  margin: 0.75rem 0 0;
+}
+
+@media (max-width: 36rem) {
+  .relay-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .relay-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

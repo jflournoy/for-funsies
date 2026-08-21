@@ -61,6 +61,27 @@ function parseLedger(markdown) {
   return entries;
 }
 
+function relayFallback(entries) {
+  const nodes = [];
+  const seen = new Set();
+  for (const entry of entries) {
+    const number = Number.parseInt(String(entry.issue).replace(/^#/, ""), 10);
+    if (!Number.isSafeInteger(number) || seen.has(number)) continue;
+    const url = entry.issueLink ?? `${GITHUB_BASE}/issues/${number}`;
+    const pr = Number.parseInt(String(entry.pr).replace(/^#/, ""), 10);
+    nodes.push({
+      number,
+      title: entry.notes || `Completed bounty #${number}`,
+      url,
+      state: "answered",
+      createdAt: entry.date,
+      ...(Number.isSafeInteger(pr) ? { pr, prUrl: entry.prLink ?? `${GITHUB_BASE}/pull/${pr}` } : {}),
+    });
+    seen.add(number);
+  }
+  return { source: "ledger-fallback", nodes, edges: [] };
+}
+
 // ── Safe filename from contributor handle ─────────────────────────────────
 //
 // Contributor handles are ledger data and may contain anything: `<script>`,
@@ -417,6 +438,15 @@ async function main() {
   // `</script` never appears in the raw bytes, so a brute-force escape is
   // applied below.
   const gardenDataJson = JSON.stringify(snapshot).replace(/<\/script/gi, "<\\/script");
+  let relaySnapshot = relayFallback(entries);
+  if (existsSync(".build/dare-relay.json")) {
+    try {
+      relaySnapshot = JSON.parse(await readFile(".build/dare-relay.json", "utf-8"));
+    } catch (error) {
+      console.log(`WARNING: invalid .build/dare-relay.json; using ledger fallback (${error}).`);
+    }
+  }
+  const relayDataJson = JSON.stringify(relaySnapshot).replace(/<\/script/gi, "<\\/script");
   let indexPath = `${DIST}/index.html`;
   let indexHtml = await readFile(indexPath, "utf-8");
   const marker = '<script type="application/json" id="garden-data"></script>';
@@ -429,6 +459,18 @@ async function main() {
     console.log("Embedded garden data (" + gardenDataJson.length + " bytes) into index.html.");
   } else {
     console.log("WARNING: garden-data marker not found in index.html; interactive garden will not load.");
+  }
+
+  const relayMarker = '<script type="application/json" id="relay-data"></script>';
+  if (indexHtml.includes(relayMarker)) {
+    indexHtml = indexHtml.replace(
+      relayMarker,
+      `<script type="application/json" id="relay-data">${relayDataJson}</script>`
+    );
+    await writeFile(indexPath, indexHtml, "utf-8");
+    console.log(`Embedded relay data (${relaySnapshot.nodes.length} nodes, ${relaySnapshot.edges.length} edges).`);
+  } else {
+    console.log("WARNING: relay-data marker not found in index.html; relay graph will not load.");
   }
 
   const files = await readdir(DIST, { recursive: true });
