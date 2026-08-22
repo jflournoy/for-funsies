@@ -381,3 +381,60 @@ a { color: var(--accent); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+.thing-doer-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.throughput-tag {
+  font-size: 0.85rem;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--rule) 40%, transparent);
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+
+.progress-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: color-mix(in srgb, var(--rule) 60%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--gold, #d97706);
+  border-radius: 999px;
+  transition: width 0.15s ease-out;
+}
+
+/* ── Mutation Game (DARE 010) & Quirky Aesthetics (DARE 006) ── */
+.mutation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.mutation-log-entry {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-left: 3px solid var(--accent);
+  color: var(--fg);
+}
+
+.funsies-console:hover {
+  transform: rotate(0.12deg);
+  transition: transform 0.2s ease-in-out;
+}
+
