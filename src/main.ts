@@ -15,125 +15,154 @@ const GITHUB_BASE = "https://github.com/jflournoy/for-funsies";
 
 /** Extract the PR/issue number from a markdown cell like `[#3](https://...)`. */
 function extractNumber(cell: string): string | null {
-  const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
-  return m ? (m[1] ?? null) : null;
+	const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
+	return m ? (m[1] ?? null) : null;
 }
 
 /** Make a GitHub link element. Safe — uses createElement, not innerHTML. */
 function gitHubLink(cell: string, basePath: string): HTMLTableCellElement {
-  const num = extractNumber(cell);
-  const td = document.createElement("td");
-  if (num) {
-    const a = document.createElement("a");
-    a.href = `${GITHUB_BASE}/${basePath}/${num}`;
-    a.textContent = num;
-    td.append(a);
-  } else {
-    td.textContent = cell;
-  }
-  return td;
+	const num = extractNumber(cell);
+	const td = document.createElement("td");
+	if (num) {
+		const a = document.createElement("a");
+		a.href = `${GITHUB_BASE}/${basePath}/${num}`;
+		a.textContent = num;
+		td.append(a);
+	} else {
+		td.textContent = cell;
+	}
+	return td;
 }
 
 async function main() {
-  const tbody = document.querySelector<HTMLElement>("#ledger-body");
-  const total = document.querySelector<HTMLElement>("#total-gsd");
-  const status = document.querySelector<HTMLElement>("#status");
-  if (!tbody || !total || !status) return;
+	const tbody = document.querySelector<HTMLElement>("#ledger-body");
+	const total = document.querySelector<HTMLElement>("#total-gsd");
+	const status = document.querySelector<HTMLElement>("#status");
+	if (!tbody || !total || !status) return;
 
-  try {
-    const response = await fetch(LEDGER_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+	try {
+		const response = await fetch(LEDGER_URL);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const entries = parseLedger(await response.text());
-    // Override the default render — use our own that adds GitHub links
-    renderLedgerWithLinks(entries, tbody);
-    initFunsiesSignal(entries);
-    total.textContent = String(totalGsd(entries));
+		const entries = parseLedger(await response.text());
+		// Override the default render — use our own that adds GitHub links
+		renderLedgerWithLinks(entries, tbody);
+		initFunsiesSignal(entries);
+		total.textContent = String(totalGsd(entries));
 
-    status.textContent =
-      entries.length === 0
-        ? "The ledger is empty. The first row is worth 1 GSD and is unclaimed."
-        : `${entries.length} award${entries.length === 1 ? "" : "s"} issued.`;
-  } catch (error) {
-    status.textContent = `Could not load the ledger: ${
-      error instanceof Error ? error.message : "unknown error"
-    }`;
-  }
+		status.textContent =
+			entries.length === 0
+				? "The ledger is empty. The first row is worth 1 GSD and is unclaimed."
+				: `${entries.length} award${entries.length === 1 ? "" : "s"} issued.`;
+	} catch (error) {
+		status.textContent = `Could not load the ledger: ${
+			error instanceof Error ? error.message : "unknown error"
+		}`;
+	}
 
-  // Initialize the interactive garden after the ledger is set up
-  initGarden();
+	// Initialize the interactive garden after the ledger is set up
+	initGarden();
 }
 
 function initFunsiesSignal(entries: LedgerEntry[]): void {
-  const button = document.querySelector<HTMLButtonElement>("#funsies-button");
-  const output = document.querySelector<HTMLElement>("#funsies-output");
-  if (!button || !output) return;
+	const button = document.querySelector<HTMLButtonElement>("#funsies-button");
+	const output = document.querySelector<HTMLElement>("#funsies-output");
+	if (!button || !output) return;
 
-  const verbs = ["Teach", "Confuse", "Haunt", "Compost", "Launch", "Rename", "Tickle", "Forecast"];
-  const nouns = ["a badge", "the empty ledger", "a footer goblin", "the next agent", "a one-click ritual", "a tiny scoreboard", "the build number", "a commit star"];
-  const constraints = ["without a database", "with only text nodes", "in under forty lines", "using the current date", "without adding dependencies", "as a static-page trick", "so it still passes CI", "with one useful sentence"];
+	const verbs = [
+		"Teach",
+		"Confuse",
+		"Haunt",
+		"Compost",
+		"Launch",
+		"Rename",
+		"Tickle",
+		"Forecast",
+	];
+	const nouns = [
+		"a badge",
+		"the empty ledger",
+		"a footer goblin",
+		"the next agent",
+		"a one-click ritual",
+		"a tiny scoreboard",
+		"the build number",
+		"a commit star",
+	];
+	const constraints = [
+		"without a database",
+		"with only text nodes",
+		"in under forty lines",
+		"using the current date",
+		"without adding dependencies",
+		"as a static-page trick",
+		"so it still passes CI",
+		"with one useful sentence",
+	];
 
-  let rolls = 0;
-  const seedBase = entries.length + totalGsd(entries) * 17;
+	let rolls = 0;
+	const seedBase = entries.length + totalGsd(entries) * 17;
 
-  button.addEventListener("click", () => {
-    rolls += 1;
-    const seed = seedBase + rolls + new Date().getUTCDate();
-    const verb = verbs[seed % verbs.length] ?? "Build";
-    const noun = nouns[(seed * 3) % nouns.length] ?? "something small";
-    const constraint = constraints[(seed * 5) % constraints.length] ?? "before the joke goes stale";
-    output.textContent = `${verb} ${noun} ${constraint}.`;
-  });
+	button.addEventListener("click", () => {
+		rolls += 1;
+		const seed = seedBase + rolls + new Date().getUTCDate();
+		const verb = verbs[seed % verbs.length] ?? "Build";
+		const noun = nouns[(seed * 3) % nouns.length] ?? "something small";
+		const constraint =
+			constraints[(seed * 5) % constraints.length] ??
+			"before the joke goes stale";
+		output.textContent = `${verb} ${noun} ${constraint}.`;
+	});
 }
 
 /** Render entries into a table body with GitHub links and row clickability. */
 function renderLedgerWithLinks(
-  entries: LedgerEntry[],
-  tbody: HTMLElement,
+	entries: LedgerEntry[],
+	tbody: HTMLElement,
 ): void {
-  tbody.replaceChildren();
+	tbody.replaceChildren();
 
-  for (const entry of entries) {
-    const row = document.createElement("tr");
-    row.classList.add("clickable-row");
-    row.dataset.award = String(entry.index);
+	for (const entry of entries) {
+		const row = document.createElement("tr");
+		row.classList.add("clickable-row");
+		row.dataset.award = String(entry.index);
 
-    const cell = document.createElement("td");
-    cell.textContent = String(entry.index);
-    row.append(cell);
+		const cell = document.createElement("td");
+		cell.textContent = String(entry.index);
+		row.append(cell);
 
-    const dateCell = document.createElement("td");
-    dateCell.textContent = entry.date;
-    row.append(dateCell);
+		const dateCell = document.createElement("td");
+		dateCell.textContent = entry.date;
+		row.append(dateCell);
 
-    const contributorCell = document.createElement("td");
-    const contributorLink = document.createElement("a");
-    contributorLink.href = `./contributors.html#${encodeURIComponent(entry.contributor)}`;
-    contributorLink.textContent = entry.contributor;
-    contributorCell.append(contributorLink);
-    row.append(contributorCell);
+		const contributorCell = document.createElement("td");
+		const contributorLink = document.createElement("a");
+		contributorLink.href = `./contributors.html#${encodeURIComponent(entry.contributor)}`;
+		contributorLink.textContent = entry.contributor;
+		contributorCell.append(contributorLink);
+		row.append(contributorCell);
 
-    const kindCell = document.createElement("td");
-    kindCell.textContent = entry.kind;
-    row.append(kindCell);
+		const kindCell = document.createElement("td");
+		kindCell.textContent = entry.kind;
+		row.append(kindCell);
 
-    row.append(gitHubLink(entry.pr, "pull"));
-    row.append(gitHubLink(entry.issue, "issues"));
+		row.append(gitHubLink(entry.pr, "pull"));
+		row.append(gitHubLink(entry.issue, "issues"));
 
-    const amountCell = document.createElement("td");
-    amountCell.textContent = `${entry.amount} ${entry.denomination}`;
-    row.append(amountCell);
+		const amountCell = document.createElement("td");
+		amountCell.textContent = `${entry.amount} ${entry.denomination}`;
+		row.append(amountCell);
 
-    const notesCell = document.createElement("td");
-    notesCell.textContent = entry.notes;
-    row.append(notesCell);
+		const notesCell = document.createElement("td");
+		notesCell.textContent = entry.notes;
+		row.append(notesCell);
 
-    row.addEventListener("click", () => {
-      window.location.href = `./award-${entry.index}.html`;
-    });
+		row.addEventListener("click", () => {
+			window.location.href = `./award-${entry.index}.html`;
+		});
 
-    tbody.append(row);
-  }
+		tbody.append(row);
+	}
 }
 
 void main();
