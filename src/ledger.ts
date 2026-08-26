@@ -9,37 +9,37 @@
  */
 
 export const AWARD_KINDS = [
-  "bounty",
-  "proposal",
-  "proposal-shipped",
-  "implementation",
-  "correction",
+	"bounty",
+	"proposal",
+	"proposal-shipped",
+	"implementation",
+	"correction",
 ] as const;
 
 export type AwardKind = (typeof AWARD_KINDS)[number];
 
 export interface LedgerEntry {
-  index: number;
-  date: string;
-  contributor: string;
-  kind: AwardKind;
-  pr: string;
-  issue: string;
-  amount: string;
-  denomination: string;
-  notes: string;
+	index: number;
+	date: string;
+	contributor: string;
+	kind: AwardKind;
+	pr: string;
+	issue: string;
+	amount: string;
+	denomination: string;
+	notes: string;
 }
 
 const COLUMNS = 9;
 
 function isAwardKind(value: string): value is AwardKind {
-  return (AWARD_KINDS as readonly string[]).includes(value);
+	return (AWARD_KINDS as readonly string[]).includes(value);
 }
 
 /** Strip the markdown link syntax the ledger uses for PR and issue cells. */
 function plain(cell: string): string {
-  const link = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
-  return (link?.[1] ?? cell).trim();
+	const link = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
+	return (link?.[1] ?? cell).trim();
 }
 
 /** The only origin whose URLs may ever become a live `href`. */
@@ -59,13 +59,13 @@ const ALLOWED_URL_PREFIX = "https://github.com/jflournoy/for-funsies/";
  * back to rendering plain text.
  */
 export function safeUrl(cell: string): string | null {
-  const link = /^\[[^\]]*\]\(([^)]*)\)$/.exec(cell.trim());
-  const raw = link?.[1]?.trim();
-  if (!raw) return null;
-  // Reject control characters and whitespace, which can be used to smuggle
-  // a scheme past naive prefix checks (e.g. "java\tscript:").
-  if (/[\x00-\x20\x7f-\x9f]/.test(raw)) return null;
-  return raw.startsWith(ALLOWED_URL_PREFIX) ? raw : null;
+	const link = /^\[[^\]]*\]\(([^)]*)\)$/.exec(cell.trim());
+	const raw = link?.[1]?.trim();
+	if (!raw) return null;
+	// Reject control characters and whitespace, which can be used to smuggle
+	// a scheme past naive prefix checks (e.g. "java\tscript:").
+	if (/[\x00-\x20\x7f-\x9f]/.test(raw)) return null;
+	return raw.startsWith(ALLOWED_URL_PREFIX) ? raw : null;
 }
 
 /**
@@ -74,69 +74,72 @@ export function safeUrl(cell: string): string | null {
  * so one bad row must not blank the whole page.
  */
 export function parseLedger(markdown: string): LedgerEntry[] {
-  const entries: LedgerEntry[] = [];
+	const entries: LedgerEntry[] = [];
 
-  for (const line of markdown.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("|")) continue;
+	for (const line of markdown.split("\n")) {
+		const trimmed = line.trim();
+		if (!trimmed.startsWith("|")) continue;
 
-    const cells = trimmed.slice(1, -1).split("|").map((c) => c.trim());
-    if (cells.length !== COLUMNS) continue;
+		const cells = trimmed
+			.slice(1, -1)
+			.split("|")
+			.map((c) => c.trim());
+		if (cells.length !== COLUMNS) continue;
 
-    const index = Number.parseInt(plain(cells[0] ?? ""), 10);
-    if (!Number.isFinite(index)) continue; // header, separator, or placeholder
+		const index = Number.parseInt(plain(cells[0] ?? ""), 10);
+		if (!Number.isFinite(index)) continue; // header, separator, or placeholder
 
-    const kind = plain(cells[3] ?? "").replace(/`/g, "");
-    if (!isAwardKind(kind)) continue;
+		const kind = plain(cells[3] ?? "").replace(/`/g, "");
+		if (!isAwardKind(kind)) continue;
 
-    entries.push({
-      index,
-      date: plain(cells[1] ?? ""),
-      contributor: plain(cells[2] ?? ""),
-      kind,
-      pr: plain(cells[4] ?? ""),
-      issue: plain(cells[5] ?? ""),
-      amount: plain(cells[6] ?? ""),
-      denomination: plain(cells[7] ?? ""),
-      notes: plain(cells[8] ?? ""),
-    });
-  }
+		entries.push({
+			index,
+			date: plain(cells[1] ?? ""),
+			contributor: plain(cells[2] ?? ""),
+			kind,
+			pr: plain(cells[4] ?? ""),
+			issue: plain(cells[5] ?? ""),
+			amount: plain(cells[6] ?? ""),
+			denomination: plain(cells[7] ?? ""),
+			notes: plain(cells[8] ?? ""),
+		});
+	}
 
-  return entries;
+	return entries;
 }
 
 /** Total GSD issued, ignoring rows denominated in anything else. */
 export function totalGsd(entries: readonly LedgerEntry[]): number {
-  return entries
-    .filter((e) => e.denomination.toUpperCase() === "GSD")
-    .reduce((sum, e) => sum + (Number.parseFloat(e.amount) || 0), 0);
+	return entries
+		.filter((e) => e.denomination.toUpperCase() === "GSD")
+		.reduce((sum, e) => sum + (Number.parseFloat(e.amount) || 0), 0);
 }
 
 function cell(text: string): HTMLTableCellElement {
-  const td = document.createElement("td");
-  td.textContent = text; // escaped by the DOM — never use innerHTML here
-  return td;
+	const td = document.createElement("td");
+	td.textContent = text; // escaped by the DOM — never use innerHTML here
+	return td;
 }
 
 /** Render entries into a table body. Safe against agent-authored content. */
 export function renderLedger(
-  entries: readonly LedgerEntry[],
-  tbody: HTMLElement,
+	entries: readonly LedgerEntry[],
+	tbody: HTMLElement,
 ): void {
-  tbody.replaceChildren();
+	tbody.replaceChildren();
 
-  for (const entry of entries) {
-    const row = document.createElement("tr");
-    row.append(
-      cell(String(entry.index)),
-      cell(entry.date),
-      cell(entry.contributor),
-      cell(entry.kind),
-      cell(entry.pr),
-      cell(entry.issue),
-      cell(`${entry.amount} ${entry.denomination}`),
-      cell(entry.notes),
-    );
-    tbody.append(row);
-  }
+	for (const entry of entries) {
+		const row = document.createElement("tr");
+		row.append(
+			cell(String(entry.index)),
+			cell(entry.date),
+			cell(entry.contributor),
+			cell(entry.kind),
+			cell(entry.pr),
+			cell(entry.issue),
+			cell(`${entry.amount} ${entry.denomination}`),
+			cell(entry.notes),
+		);
+		tbody.append(row);
+	}
 }
