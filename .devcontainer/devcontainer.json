@@ -2,66 +2,63 @@
 // Open with "Dev Containers: Clone Repository in Container Volume" (see notes
 // at the bottom) so PR code never touches the host filesystem at all.
 {
-  "name": "for-funsies (contained)",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
+	"name": "for-funsies (contained)",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
 
-  "features": {
-    // check_workflow_yaml.py et al. run under python3 and import yaml
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "os-provided"
-    }
-  },
+	"features": {
+		// check_workflow_yaml.py et al. run under python3 and import yaml
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "os-provided"
+		}
+	},
 
-  // python3-yaml comes from apt, not pip: this image's Python is
-  // externally managed (PEP 668), so `pip3 install --user` refuses outright.
-  // --ignore-scripts: never run lifecycle hooks from a PR's dependencies
-  // automatically. Run `npm ci` by hand if you decide a PR's deps are fine.
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y python3-yaml && npm ci --ignore-scripts",
+	// python3-yaml comes from apt, not pip: this image's Python is
+	// externally managed (PEP 668), so `pip3 install --user` refuses outright.
+	// --ignore-scripts: never run lifecycle hooks from a PR's dependencies
+	// automatically. Run `npm ci` by hand if you decide a PR's deps are fine.
+	"postCreateCommand": "sudo apt-get update && sudo apt-get install -y python3-yaml && npm ci --ignore-scripts",
 
-  // Blank the forwarded SSH agent socket (see note 2). VS Code forwards the
-  // host agent unconditionally and there is no setting to turn that off; on a
-  // GNOME Keyring host `ssh-add -D` does not even stick, since the keyring
-  // repopulates immediately. Unsetting the variable here means container code
-  // cannot reach the socket no matter what the host agent holds.
-  "remoteEnv": {
-    "SSH_AUTH_SOCK": ""
-  },
+	// Blank the forwarded SSH agent socket (see note 2). VS Code forwards the
+	// host agent unconditionally and there is no setting to turn that off; on a
+	// GNOME Keyring host `ssh-add -D` does not even stick, since the keyring
+	// repopulates immediately. Unsetting the variable here means container code
+	// cannot reach the socket no matter what the host agent holds.
+	"remoteEnv": {
+		"SSH_AUTH_SOCK": ""
+	},
 
-  // A volume clone starts from the remote with no host extensions, so the
-  // tracked .claude/ and .codex/ config would sit inert without these two.
-  // Both hooks fail open if the binary is missing, so a failed install
-  // degrades quietly rather than breaking the container.
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "anthropic.claude-code",
-        "vexp.vexp-vscode"
-      ]
-    }
-  }
+	// A volume clone starts from the remote with no host extensions, so the
+	// tracked .claude/ and .codex/ config would sit inert without these two.
+	// Both hooks fail open if the binary is missing, so a failed install
+	// degrades quietly rather than breaking the container.
+	"customizations": {
+		"vscode": {
+			"extensions": ["anthropic.claude-code", "vexp.vexp-vscode"]
+		}
+	}
 
-  // ── Containment notes ─────────────────────────────────────────────────
-  //
-  // 1. PREFER "Clone Repository in Container Volume" over "Reopen in
-  //    Container". A bind-mounted repo lets container code write to the
-  //    host checkout — including .git/hooks, which the HOST git then
-  //    executes on your next commit/checkout. A volume clone has no host
-  //    mount, so that whole class of escape disappears.
-  //
-  // 2. VS Code forwards your git credentials and SSH agent into the
-  //    container by default. Turn the credential half off in your USER
-  //    settings (host side, can't be set from this file):
-  //        "dev.containers.copyGitConfig": false
-  //        "dev.containers.gpgAgentForwarding": false
-  //    The SSH agent half has no such setting — it is handled by the
-  //    remoteEnv block above, which blanks SSH_AUTH_SOCK inside the
-  //    container. Do not "fix" that by removing it: clearing the host
-  //    agent instead is not reliable (GNOME Keyring repopulates keys the
-  //    moment `ssh-add -D` empties them). Consequence: git push over SSH
-  //    does not work from inside the container, by design. Fetch PR
-  //    branches with an unauthenticated https remote (public repo — read
-  //    needs no credentials); push from the host.
-  //
-  // 3. The container has outbound network. Fine for this repo (nothing
-  //    secret lives in it), but don't paste tokens into the container.
+	// ── Containment notes ─────────────────────────────────────────────────
+	//
+	// 1. PREFER "Clone Repository in Container Volume" over "Reopen in
+	//    Container". A bind-mounted repo lets container code write to the
+	//    host checkout — including .git/hooks, which the HOST git then
+	//    executes on your next commit/checkout. A volume clone has no host
+	//    mount, so that whole class of escape disappears.
+	//
+	// 2. VS Code forwards your git credentials and SSH agent into the
+	//    container by default. Turn the credential half off in your USER
+	//    settings (host side, can't be set from this file):
+	//        "dev.containers.copyGitConfig": false
+	//        "dev.containers.gpgAgentForwarding": false
+	//    The SSH agent half has no such setting — it is handled by the
+	//    remoteEnv block above, which blanks SSH_AUTH_SOCK inside the
+	//    container. Do not "fix" that by removing it: clearing the host
+	//    agent instead is not reliable (GNOME Keyring repopulates keys the
+	//    moment `ssh-add -D` empties them). Consequence: git push over SSH
+	//    does not work from inside the container, by design. Fetch PR
+	//    branches with an unauthenticated https remote (public repo — read
+	//    needs no credentials); push from the host.
+	//
+	// 3. The container has outbound network. Fine for this repo (nothing
+	//    secret lives in it), but don't paste tokens into the container.
 }
