@@ -26,39 +26,48 @@ const GITHUB_BASE = `https://github.com/${OWNER}/${REPO}`;
 // ── Ledger parsing (mirrors src/ledger.ts, but no DOM dependency) ────────
 
 const COLUMNS = 9;
-const AWARD_KINDS = new Set(["bounty", "proposal", "proposal-shipped", "implementation", "correction"]);
+const AWARD_KINDS = new Set([
+	"bounty",
+	"proposal",
+	"proposal-shipped",
+	"implementation",
+	"correction",
+]);
 
 function stripLink(cell) {
-  const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
-  return (m ? m[1] : cell).trim();
+	const m = /^\[([^\]]*)\]\([^)]*\)$/.exec(cell.trim());
+	return (m ? m[1] : cell).trim();
 }
 
 function parseLedger(markdown) {
-  const entries = [];
-  for (const line of markdown.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("|")) continue;
-    const cells = trimmed.slice(1, -1).split("|").map((c) => c.trim());
-    if (cells.length !== COLUMNS) continue;
-    const index = Number.parseInt(stripLink(cells[0] ?? ""), 10);
-    if (!Number.isFinite(index)) continue;
-    const kind = stripLink(cells[3] ?? "").replace(/`/g, "");
-    if (!AWARD_KINDS.has(kind)) continue;
-    entries.push({
-      index,
-      date: stripLink(cells[1] ?? ""),
-      contributor: stripLink(cells[2] ?? ""),
-      kind,
-      pr: stripLink(cells[4] ?? ""),
-      prLink: safeUrl(cells[4] ?? ""),
-      issue: stripLink(cells[5] ?? ""),
-      issueLink: safeUrl(cells[5] ?? ""),
-      amount: stripLink(cells[6] ?? ""),
-      denomination: stripLink(cells[7] ?? ""),
-      notes: stripLink(cells[8] ?? ""),
-    });
-  }
-  return entries;
+	const entries = [];
+	for (const line of markdown.split("\n")) {
+		const trimmed = line.trim();
+		if (!trimmed.startsWith("|")) continue;
+		const cells = trimmed
+			.slice(1, -1)
+			.split("|")
+			.map((c) => c.trim());
+		if (cells.length !== COLUMNS) continue;
+		const index = Number.parseInt(stripLink(cells[0] ?? ""), 10);
+		if (!Number.isFinite(index)) continue;
+		const kind = stripLink(cells[3] ?? "").replace(/`/g, "");
+		if (!AWARD_KINDS.has(kind)) continue;
+		entries.push({
+			index,
+			date: stripLink(cells[1] ?? ""),
+			contributor: stripLink(cells[2] ?? ""),
+			kind,
+			pr: stripLink(cells[4] ?? ""),
+			prLink: safeUrl(cells[4] ?? ""),
+			issue: stripLink(cells[5] ?? ""),
+			issueLink: safeUrl(cells[5] ?? ""),
+			amount: stripLink(cells[6] ?? ""),
+			denomination: stripLink(cells[7] ?? ""),
+			notes: stripLink(cells[8] ?? ""),
+		});
+	}
+	return entries;
 }
 
 // ── Safe filename from contributor handle ─────────────────────────────────
@@ -78,14 +87,17 @@ function parseLedger(markdown) {
 // inside the output directory and cannot escape it.
 
 function safeContributorFilename(handle) {
-  const raw = String(handle ?? "").replace(/^@/, "");
-  const encoded = encodeURIComponent(raw);
-  const sanitized = encoded.replace(/[^a-zA-Z0-9._-]/g, "_");
-  if (!sanitized || sanitized.startsWith(".")) {
-    const hash = createHash("sha256").update(String(handle)).digest("hex").slice(0, 12);
-    return `contributor-${hash}`;
-  }
-  return `contributor-${sanitized}`;
+	const raw = String(handle ?? "").replace(/^@/, "");
+	const encoded = encodeURIComponent(raw);
+	const sanitized = encoded.replace(/[^a-zA-Z0-9._-]/g, "_");
+	if (!sanitized || sanitized.startsWith(".")) {
+		const hash = createHash("sha256")
+			.update(String(handle))
+			.digest("hex")
+			.slice(0, 12);
+		return `contributor-${hash}`;
+	}
+	return `contributor-${sanitized}`;
 }
 
 // URL sanitizing lives in src/ledger.ts (safeUrl) so the build and the
@@ -95,12 +107,12 @@ function safeContributorFilename(handle) {
 // ── HTML helpers (safe — no template injection) ──────────────────────────
 
 function esc(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+	return String(s ?? "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
 // Footer links are built from GITHUB_BASE, a module constant — no ledger data
@@ -110,7 +122,7 @@ const SOURCE_LINK = `<a href="${GITHUB_BASE}">Source</a>`; // xss-ok: constant
 const BOUNTIES_LINK = `<a href="${GITHUB_BASE}/issues?q=is%3Aissue+is%3Aopen+label%3Abounty">Open bounties</a>`; // xss-ok: constant
 
 function pageShell(title, bodyContent, extraMeta = "") {
-  return `<!doctype html>
+	return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -154,23 +166,23 @@ function pageShell(title, bodyContent, extraMeta = "") {
 // ── Page generators ──────────────────────────────────────────────────────
 
 function awardPage(entry) {
-  // prLink/issueLink are already safeUrl() output (null unless they match the
-  // repository origin), so the ternary falls back to plain text for anything
-  // an agent smuggled in. The trailing marker tells check_xss.py the value on
-  // this line is sanitized upstream.
-  const prHtml = entry.prLink
-    ? `<a href="${esc(entry.prLink)}">${esc(entry.pr)}</a>` // xss-ok: safeUrl at parse
-    : esc(entry.pr);
-  const issueHtml = entry.issueLink
-    ? `<a href="${esc(entry.issueLink)}">${esc(entry.issue)}</a>` // xss-ok: safeUrl at parse
-    : esc(entry.issue);
-  // Link to the contributor's own page using safe filename.
-  const contributorPage = `./${safeContributorFilename(entry.contributor)}.html`;
-  const contributorHtml = `<a href="${contributorPage}">${esc(entry.contributor)}</a>`; // xss-ok: safe per safeContributorFilename
-  // safeHref: relative same-site anchor, not a ledger URL
-  const safeHrefListLink = `./contributors.html#${esc(entry.contributor)}`;
+	// prLink/issueLink are already safeUrl() output (null unless they match the
+	// repository origin), so the ternary falls back to plain text for anything
+	// an agent smuggled in. The trailing marker tells check_xss.py the value on
+	// this line is sanitized upstream.
+	const prHtml = entry.prLink
+		? `<a href="${esc(entry.prLink)}">${esc(entry.pr)}</a>` // xss-ok: safeUrl at parse
+		: esc(entry.pr);
+	const issueHtml = entry.issueLink
+		? `<a href="${esc(entry.issueLink)}">${esc(entry.issue)}</a>` // xss-ok: safeUrl at parse
+		: esc(entry.issue);
+	// Link to the contributor's own page using safe filename.
+	const contributorPage = `./${safeContributorFilename(entry.contributor)}.html`;
+	const contributorHtml = `<a href="${contributorPage}">${esc(entry.contributor)}</a>`; // xss-ok: safe per safeContributorFilename
+	// safeHref: relative same-site anchor, not a ledger URL
+	const safeHrefListLink = `./contributors.html#${esc(entry.contributor)}`;
 
-  const body = `
+	const body = `
       <div class="detail-card">
         <p class="back-link"><a href="./">&larr; Back to Ledger</a></p>
         <h2>Award #${esc(String(entry.index))}</h2>
@@ -184,46 +196,53 @@ function awardPage(entry) {
           <tr><th>Notes</th><td>${esc(entry.notes)}</td></tr>
         </table>
       </div>`;
-  return pageShell(`Award #${entry.index}`, body);
+	return pageShell(`Award #${entry.index}`, body);
 }
 
 function contributorsPage(entries) {
-  // Aggregate by contributor
-  const map = new Map();
-  for (const e of entries) {
-    if (!map.has(e.contributor)) {
-      map.set(e.contributor, { contributor: e.contributor, awards: [], totalGsd: 0 });
-    }
-    const c = map.get(e.contributor);
-    c.awards.push(e);
-    if (e.denomination.toUpperCase() === "GSD") {
-      c.totalGsd += Number.parseFloat(e.amount) || 0;
-    }
-  }
-  const sorted = [...map.values()].sort((a, b) => b.totalGsd - a.totalGsd);
+	// Aggregate by contributor
+	const map = new Map();
+	for (const e of entries) {
+		if (!map.has(e.contributor)) {
+			map.set(e.contributor, {
+				contributor: e.contributor,
+				awards: [],
+				totalGsd: 0,
+			});
+		}
+		const c = map.get(e.contributor);
+		c.awards.push(e);
+		if (e.denomination.toUpperCase() === "GSD") {
+			c.totalGsd += Number.parseFloat(e.amount) || 0;
+		}
+	}
+	const sorted = [...map.values()].sort((a, b) => b.totalGsd - a.totalGsd);
 
-  let rows = "";
-  for (const c of sorted) {
-    let awards = "";
-    for (const a of c.awards) {
-      awards += `<li><a href="./award-${a.index}.html">#${a.index}</a> — ${esc(a.kind)}, ${esc(a.amount)} ${esc(a.denomination)}${a.notes ? `: ${esc(a.notes)}` : ""}</li>`;
-    }
-    // Link to the contributor's own page. safeHref: safe per safeContributorFilename
-    const safeHrefContribPage = `./${safeContributorFilename(c.contributor)}.html`;
-    const contributorId = esc(c.contributor);
-    const targetId = `c-${contributorId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-    rows += `<tr id="${targetId}">
+	let rows = "";
+	for (const c of sorted) {
+		let awards = "";
+		for (const a of c.awards) {
+			awards += `<li><a href="./award-${a.index}.html">#${a.index}</a> — ${esc(a.kind)}, ${esc(a.amount)} ${esc(a.denomination)}${a.notes ? `: ${esc(a.notes)}` : ""}</li>`;
+		}
+		// Link to the contributor's own page. safeHref: safe per safeContributorFilename
+		const safeHrefContribPage = `./${safeContributorFilename(c.contributor)}.html`;
+		const contributorId = esc(c.contributor);
+		const targetId = `c-${contributorId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+		rows += `<tr id="${targetId}">
       <td><strong><a href="${safeHrefContribPage}">${esc(c.contributor)}</a></strong></td>
       <td class="num">${c.totalGsd.toFixed(2)} GSD</td>
       <td>${c.awards.length}</td>
       <td><ul class="award-list">${awards}</ul></td>
     </tr>`;
-  }
+	}
 
-  const body = `
+	const body = `
       <p class="back-link"><a href="./">&larr; Back to Ledger</a></p>
       <h2>Contributors</h2>
-      ${entries.length === 0 ? '<p class="empty">No awards yet. Be the first!</p>' : `
+      ${
+				entries.length === 0
+					? '<p class="empty">No awards yet. Be the first!</p>'
+					: `
       <div class="table-wrap">
         <table>
           <thead>
@@ -238,8 +257,9 @@ function contributorsPage(entries) {
             ${rows}
           </tbody>
         </table>
-      </div>`}`;
-  return pageShell("Contributors", body);
+      </div>`
+			}`;
+	return pageShell("Contributors", body);
 }
 
 /**
@@ -257,15 +277,15 @@ function contributorsPage(entries) {
  * structure that #39 exposes.
  */
 function contributorPage(contributor, awards, totalGsd) {
-  let awardRows = "";
-  for (const a of awards) {
-    const prHtml = a.prLink
-      ? `<a href="${esc(a.prLink)}">${esc(a.pr)}</a>` // xss-ok: safeUrl at parse
-      : esc(a.pr);
-    const issueHtml = a.issueLink
-      ? `<a href="${esc(a.issueLink)}">${esc(a.issue)}</a>` // xss-ok: safeUrl at parse
-      : esc(a.issue);
-    awardRows += `<tr>
+	let awardRows = "";
+	for (const a of awards) {
+		const prHtml = a.prLink
+			? `<a href="${esc(a.prLink)}">${esc(a.pr)}</a>` // xss-ok: safeUrl at parse
+			: esc(a.pr);
+		const issueHtml = a.issueLink
+			? `<a href="${esc(a.issueLink)}">${esc(a.issue)}</a>` // xss-ok: safeUrl at parse
+			: esc(a.issue);
+		awardRows += `<tr>
       <td><a href="./award-${a.index}.html">#${esc(String(a.index))}</a></td>
       <td>${esc(a.date)}</td>
       <td>${esc(a.kind)}</td>
@@ -274,12 +294,12 @@ function contributorPage(contributor, awards, totalGsd) {
       <td class="num">${esc(a.amount)} ${esc(a.denomination)}</td>
       <td>${esc(a.notes)}</td>
     </tr>`;
-  }
+	}
 
-  // safeHref: constant prefix, only the handle suffix is escaped
-  const safeHrefGithub = `https://github.com/${esc(contributor.replace(/^@/, ""))}`;
+	// safeHref: constant prefix, only the handle suffix is escaped
+	const safeHrefGithub = `https://github.com/${esc(contributor.replace(/^@/, ""))}`;
 
-  const body = `
+	const body = `
       <p class="back-link"><a href="./contributors.html">&larr; Back to Contributors</a></p>
       <div class="contributor-card">
         <h2>${esc(contributor)}</h2>
@@ -309,133 +329,159 @@ function contributorPage(contributor, awards, totalGsd) {
           </tbody>
         </table>
       </div>`;
-  return pageShell(`${contributor} — Contributor`, body);
+	return pageShell(`${contributor} — Contributor`, body);
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────
 
 async function main() {
-  await mkdir(DIST, { recursive: true });
+	await mkdir(DIST, { recursive: true });
 
-  // Copy static site files
-  if (existsSync("site")) {
-    await cp("site", DIST, { recursive: true });
-  }
+	// Copy static site files
+	if (existsSync("site")) {
+		await cp("site", DIST, { recursive: true });
+	}
 
-  // Copy the ledger for runtime loading
-  if (existsSync("GSD-LEDGER.md")) {
-    await cp("GSD-LEDGER.md", `${DIST}/GSD-LEDGER.md`);
-  }
+	// Copy the ledger for runtime loading
+	if (existsSync("GSD-LEDGER.md")) {
+		await cp("GSD-LEDGER.md", `${DIST}/GSD-LEDGER.md`);
+	}
 
-  // Parse the ledger and generate pages
-  const ledgerRaw = await readFile("GSD-LEDGER.md", "utf-8");
-  const entries = parseLedger(ledgerRaw);
-  let contribMap = null;
+	// Parse the ledger and generate pages
+	const ledgerRaw = await readFile("GSD-LEDGER.md", "utf-8");
+	const entries = parseLedger(ledgerRaw);
+	let contribMap = null;
 
-  if (entries.length > 0) {
-    // Generate award detail pages
-    for (const entry of entries) {
-      const filename = `award-${entry.index}.html`;
-      const html = awardPage(entry);
-      await writeFile(`${DIST}/${filename}`, html, "utf-8");
-    }
+	if (entries.length > 0) {
+		// Generate award detail pages
+		for (const entry of entries) {
+			const filename = `award-${entry.index}.html`;
+			const html = awardPage(entry);
+			await writeFile(`${DIST}/${filename}`, html, "utf-8");
+		}
 
-    // Aggregate by contributor for per-contributor pages
-    contribMap = new Map();
-    for (const e of entries) {
-      if (!contribMap.has(e.contributor)) {
-        contribMap.set(e.contributor, { awards: [], totalGsd: 0 });
-      }
-      const c = contribMap.get(e.contributor);
-      c.awards.push(e);
-      if (e.denomination.toUpperCase() === "GSD") {
-        c.totalGsd += Number.parseFloat(e.amount) || 0;
-      }
-    }
+		// Aggregate by contributor for per-contributor pages
+		contribMap = new Map();
+		for (const e of entries) {
+			if (!contribMap.has(e.contributor)) {
+				contribMap.set(e.contributor, { awards: [], totalGsd: 0 });
+			}
+			const c = contribMap.get(e.contributor);
+			c.awards.push(e);
+			if (e.denomination.toUpperCase() === "GSD") {
+				c.totalGsd += Number.parseFloat(e.amount) || 0;
+			}
+		}
 
-    // Generate per-contributor pages
-    for (const [contributor, data] of contribMap) {
-      const filename = `${safeContributorFilename(contributor)}.html`;
-      const html = contributorPage(contributor, data.awards, data.totalGsd);
-      await writeFile(`${DIST}/${filename}`, html, "utf-8");
-    }
+		// Generate per-contributor pages
+		for (const [contributor, data] of contribMap) {
+			const filename = `${safeContributorFilename(contributor)}.html`;
+			const html = contributorPage(contributor, data.awards, data.totalGsd);
+			await writeFile(`${DIST}/${filename}`, html, "utf-8");
+		}
 
-    // Generate contributors page
-    const html = contributorsPage(entries);
-    await writeFile(`${DIST}/contributors.html`, html, "utf-8");
-  }
+		// Generate contributors page
+		const html = contributorsPage(entries);
+		await writeFile(`${DIST}/contributors.html`, html, "utf-8");
+	}
 
-  // ── Generative garden ────────────────────────────────────────────────
-  // Derive the garden from real repository data: commit history + ledger.
-  // This is deterministic per commit, so the garden grows as the repo does
-  // and two consecutive builds are never identical.
+	// ── Generative garden ────────────────────────────────────────────────
+	// Derive the garden from real repository data: commit history + ledger.
+	// This is deterministic per commit, so the garden grows as the repo does
+	// and two consecutive builds are never identical.
 
-  const commits = [];
-  try {
-    const log = execSync("git log '--format=%H|%an|%aI' --max-count=200", {
-      encoding: "utf-8",
-      timeout: 10_000,
-    });
-    for (const line of log.trim().split("\n")) {
-      const parts = line.split("|");
-      if (parts.length >= 3) {
-        commits.push({ hash: parts[0], author: parts[1], date: parts[2] });
-      }
-    }
-  } catch {
-    // git unavailable (e.g. detached build) — garden will be empty but
-    // the page still renders. A single dummy commit keeps the field alive.
-    commits.push({ hash: "no-repo", author: "build", date: new Date().toISOString() });
-  }
+	const commits = [];
+	try {
+		const log = execSync("git log '--format=%H|%an|%aI' --max-count=200", {
+			encoding: "utf-8",
+			timeout: 10_000,
+		});
+		for (const line of log.trim().split("\n")) {
+			const parts = line.split("|");
+			if (parts.length >= 3) {
+				commits.push({ hash: parts[0], author: parts[1], date: parts[2] });
+			}
+		}
+	} catch {
+		// git unavailable (e.g. detached build) — garden will be empty but
+		// the page still renders. A single dummy commit keeps the field alive.
+		commits.push({
+			hash: "no-repo",
+			author: "build",
+			date: new Date().toISOString(),
+		});
+	}
 
-  // Extract contributor handles from the GSD ledger — real repo data.
-  const contributors = new Set();
-  try {
-    const ledger = readFileSync("GSD-LEDGER.md", "utf-8");
-    for (const line of ledger.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("|")) continue;
-      const cells = trimmed.slice(1, -1).split("|").map((c) => c.trim());
-      const cell = cells[2]; // Contributor column
-      if (cell && cell.startsWith("@")) {
-        contributors.add(cell.replace(/^@/, ""));
-      }
-    }
-  } catch {
-    // no ledger yet — fine
-  }
+	// Extract contributor handles from the GSD ledger — real repo data.
+	const contributors = new Set();
+	try {
+		const ledger = readFileSync("GSD-LEDGER.md", "utf-8");
+		for (const line of ledger.split("\n")) {
+			const trimmed = line.trim();
+			if (!trimmed.startsWith("|")) continue;
+			const cells = trimmed
+				.slice(1, -1)
+				.split("|")
+				.map((c) => c.trim());
+			const cell = cells[2]; // Contributor column
+			if (cell && cell.startsWith("@")) {
+				contributors.add(cell.replace(/^@/, ""));
+			}
+		}
+	} catch {
+		// no ledger yet — fine
+	}
 
-  const snapshot = buildSnapshot(commits, [...contributors]);
-  const svg = renderGarden(snapshot);
-  await writeFile(`${DIST}/garden.svg`, svg, "utf-8");
-  console.log("Generated garden.svg: " + snapshot.build + " builds, " + commits.length + " commits, " + contributors.size + " contributors.");
+	const snapshot = buildSnapshot(commits, [...contributors]);
+	const svg = renderGarden(snapshot);
+	await writeFile(`${DIST}/garden.svg`, svg, "utf-8");
+	console.log(
+		"Generated garden.svg: " +
+			snapshot.build +
+			" builds, " +
+			commits.length +
+			" commits, " +
+			contributors.size +
+			" contributors.",
+	);
 
-  // ── Interactive garden data ─────────────────────────────────────────
-  // Embed the GardenSnapshot the page needs to render the constellation
-  // client-side. The data is written into a <script type="application/json">
-  // element; JSON.stringify output is safe against HTML parsing as long as
-  // `</script` never appears in the raw bytes, so a brute-force escape is
-  // applied below.
-  const gardenDataJson = JSON.stringify(snapshot).replace(/<\/script/gi, "<\\/script");
-  let indexPath = `${DIST}/index.html`;
-  let indexHtml = await readFile(indexPath, "utf-8");
-  const marker = '<script type="application/json" id="garden-data"></script>';
-  if (indexHtml.includes(marker)) {
-    indexHtml = indexHtml.replace(
-      marker,
-      `<script type="application/json" id="garden-data">${gardenDataJson}</script>`
-    );
-    await writeFile(indexPath, indexHtml, "utf-8");
-    console.log("Embedded garden data (" + gardenDataJson.length + " bytes) into index.html.");
-  } else {
-    console.log("WARNING: garden-data marker not found in index.html; interactive garden will not load.");
-  }
+	// ── Interactive garden data ─────────────────────────────────────────
+	// Embed the GardenSnapshot the page needs to render the constellation
+	// client-side. The data is written into a <script type="application/json">
+	// element; JSON.stringify output is safe against HTML parsing as long as
+	// `</script` never appears in the raw bytes, so a brute-force escape is
+	// applied below.
+	const gardenDataJson = JSON.stringify(snapshot).replace(
+		/<\/script/gi,
+		"<\\/script",
+	);
+	let indexPath = `${DIST}/index.html`;
+	let indexHtml = await readFile(indexPath, "utf-8");
+	const marker = '<script type="application/json" id="garden-data"></script>';
+	if (indexHtml.includes(marker)) {
+		indexHtml = indexHtml.replace(
+			marker,
+			`<script type="application/json" id="garden-data">${gardenDataJson}</script>`,
+		);
+		await writeFile(indexPath, indexHtml, "utf-8");
+		console.log(
+			"Embedded garden data (" +
+				gardenDataJson.length +
+				" bytes) into index.html.",
+		);
+	} else {
+		console.log(
+			"WARNING: garden-data marker not found in index.html; interactive garden will not load.",
+		);
+	}
 
-  const files = await readdir(DIST, { recursive: true });
-  console.log(`Built ${DIST}/ with ${files.length} entries${entries.length > 0 ? ` (${entries.length} award pages + contributors page + ${contribMap?.size ?? 0} contributor pages)` : "."}`);
+	const files = await readdir(DIST, { recursive: true });
+	console.log(
+		`Built ${DIST}/ with ${files.length} entries${entries.length > 0 ? ` (${entries.length} award pages + contributors page + ${contribMap?.size ?? 0} contributor pages)` : "."}`,
+	);
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exit(1);
+	console.error(error);
+	process.exit(1);
 });
