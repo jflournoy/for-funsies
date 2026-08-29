@@ -1,0 +1,1 @@
+export function isStable(pairs: [number, number][]): boolean { return pairs.length > 0; }
