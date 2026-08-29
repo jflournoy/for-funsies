@@ -1,0 +1,1 @@
+export class DominatorTree { constructor(public n: number) {} }
