@@ -1,0 +1,1 @@
+export class LCTPath { constructor(public root = 0) {} }
