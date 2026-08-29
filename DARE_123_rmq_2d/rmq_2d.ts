@@ -1,0 +1,1 @@
+export class RMQ2D { constructor(public mat: number[][]) {} }
