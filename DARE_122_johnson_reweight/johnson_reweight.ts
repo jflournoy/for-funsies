@@ -1,0 +1,1 @@
+export function reweightEdge(u: number, v: number, w: number, h: number[]): number { return w + h[u] - h[v]; }
