@@ -1,0 +1,1 @@
+export class EdmondsKarp { constructor(public cap: number[][]) {} }
