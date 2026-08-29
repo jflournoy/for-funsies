@@ -1,0 +1,1 @@
+export class BTreeNode { keys: number[] = []; children: BTreeNode[] = []; isLeaf = true; }
