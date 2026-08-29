@@ -1,0 +1,1 @@
+export class VoronoiDual { constructor(public sites: [number, number][]) {} }
