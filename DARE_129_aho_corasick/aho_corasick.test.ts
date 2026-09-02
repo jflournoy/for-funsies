@@ -1,0 +1,10 @@
+import { AhoCorasick } from './aho_corasick';
+import assert from 'node:assert/strict';
+const ac = new AhoCorasick();
+ac.addPattern("he"); ac.addPattern("she"); ac.addPattern("his"); ac.addPattern("hers");
+ac.build();
+const matches = ac.search("ushers");
+assert.equal(matches.some(m => m.word === "she"), true);
+assert.equal(matches.some(m => m.word === "he"), true);
+assert.equal(matches.some(m => m.word === "hers"), true);
+console.log('DARE 129 passed');
