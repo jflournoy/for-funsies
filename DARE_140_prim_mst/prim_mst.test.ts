@@ -1,0 +1,2 @@
+import { primMST } from './prim_mst'; import assert from 'node:assert/strict';
+const adj: Array<Array<[number, number]>> = [[[1, 1], [2, 3]], [[0, 1], [2, 1]], [[0, 3], [1, 1]]]; assert.equal(primMST(3, adj), 2);
