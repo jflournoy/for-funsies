@@ -1,0 +1,2 @@
+import { Trie } from './trie_autocomplete'; import assert from 'node:assert/strict';
+const t = new Trie(); t.insert("apple"); assert.equal(t.startsWith("app"), true); assert.equal(t.startsWith("ban"), false);
