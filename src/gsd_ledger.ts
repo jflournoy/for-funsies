@@ -8,7 +8,11 @@
  *
  * Usage:
  *   npm run ledger -- --pr <n> --contributor <handle> --issue <n> --amount <n> --kind <kind> \
- *     [--proposer <handle>] [--denomination GSD|USD] [--notes <text>]
+ *     [--proposer <handle>] [--denomination GSD|USD] [--notes <text>] [--ledger <path>]
+ *
+ * `--ledger <path>` overrides the ledger file (default: ./GSD-LEDGER.md at the
+ * repo root). It exists so the tool can be exercised against a scratch file,
+ * which is how tests/ drives it end to end.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -216,19 +220,23 @@ function validateLedger(content: string): void {
 }
 
 /**
- * Print per-contributor totals, broken down by award kind.
- * Originally PR #20 (waterWang), from accepted proposal #7 (Kasuki354).
+ * Print per-contributor totals for a single denomination, broken down by
+ * award kind. Originally PR #20 (waterWang), from accepted proposal #7
+ * (Kasuki354); parameterised by denomination so USD awards are reported rather
+ * than silently dropped.
  */
-function printSummary(entries: readonly LedgerEntry[]): void {
+function printTotals(entries: readonly LedgerEntry[], denomination: string): void {
   const KINDS = ["bounty", "proposal", "proposal-shipped", "implementation", "correction"] as const;
 
   const totals = new Map<string, Map<string, number>>();
   for (const e of entries) {
-    if (e.denomination.toUpperCase() !== "GSD") continue;
+    if (e.denomination.toUpperCase() !== denomination) continue;
     const row = totals.get(e.contributor) ?? new Map<string, number>();
     row.set(e.kind, (row.get(e.kind) ?? 0) + (Number.parseFloat(e.amount) || 0));
     totals.set(e.contributor, row);
   }
+
+  if (totals.size === 0) return;
 
   const nameWidth = Math.max(11, ...[...totals.keys()].map((n) => n.length));
   const cols = [...KINDS, "Total"];
@@ -253,6 +261,28 @@ function printSummary(entries: readonly LedgerEntry[]): void {
     const perKind = KINDS.map((k) => String(row.get(k) ?? 0));
     const total = [...row.values()].reduce((a, b) => a + b, 0);
     process.stdout.write(line([name, ...perKind, String(total)]) + "\n");
+  }
+}
+
+/**
+ * Summarise every denomination present in the ledger. GSD is the canonical
+ * unit and prints first; any other denomination gets its own clearly labelled
+ * table so a USD award is never invisible in the totals.
+ */
+function printSummary(entries: readonly LedgerEntry[]): void {
+  printTotals(entries, "GSD");
+
+  const others = [
+    ...new Set(
+      entries
+        .map((e) => e.denomination.toUpperCase())
+        .filter((d) => d !== "" && d !== "GSD"),
+    ),
+  ].sort();
+
+  for (const denomination of others) {
+    process.stdout.write(`\n${denomination} awards:\n`);
+    printTotals(entries, denomination);
   }
 }
 
@@ -281,13 +311,20 @@ function main(): void {
       validate: { type: "boolean" },
       format: { type: "string" },
       summary: { type: "boolean" },
+      ledger: { type: "string" },
     },
     strict: true,
   });
 
+  // Default to the repo-root ledger; --ledger lets tests (and one-off runs)
+  // target a scratch copy without touching the real, append-only file.
+  const ledgerPath = values.ledger
+    ? resolve(process.cwd(), values.ledger)
+    : LEDGER_PATH;
+
   // The --validate flag is a standalone mode: read, check, report, exit.
   if (values.validate) {
-    const content = readFileSync(LEDGER_PATH, "utf-8");
+    const content = readFileSync(ledgerPath, "utf-8");
     validateLedger(content);
     return;
   }
@@ -297,14 +334,14 @@ function main(): void {
     if (values.format !== "json") {
       fail("--format currently supports only: json");
     }
-    const entries = parseLedger(readFileSync(LEDGER_PATH, "utf-8"));
+    const entries = parseLedger(readFileSync(ledgerPath, "utf-8"));
     process.stdout.write(JSON.stringify(entries, null, 2) + "\n");
     return;
   }
 
   // --summary: per-contributor totals broken down by award kind. (#7, PR #20)
   if (values.summary) {
-    printSummary(parseLedger(readFileSync(LEDGER_PATH, "utf-8")));
+    printSummary(parseLedger(readFileSync(ledgerPath, "utf-8")));
     return;
   }
 
@@ -334,7 +371,7 @@ function main(): void {
     fail("--denomination must be GSD or USD");
   }
 
-  const content = readFileSync(LEDGER_PATH, "utf-8");
+  const content = readFileSync(ledgerPath, "utf-8");
   const lines = content.split("\n");
   // Drop trailing blank lines so we control the final newline.
   while (lines.length > 0 && lines[lines.length - 1] === "") {
@@ -387,7 +424,7 @@ function main(): void {
   }
 
   const updated = appendRows([...lines], newRows);
-  writeFileSync(LEDGER_PATH, updated.join("\n") + "\n", "utf-8");
+  writeFileSync(ledgerPath, updated.join("\n") + "\n", "utf-8");
 
   process.stdout.write(`Appended ${newRows.length} row(s) to GSD-LEDGER.md\n`);
 }

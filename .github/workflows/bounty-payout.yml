@@ -86,6 +86,17 @@ jobs:
           npx --no-install tsc --noEmit
           echo "TypeScript: OK"
 
+      - name: Ledger tooling tests must pass
+        # Covers the script bounty #1 asked for: append format, the two-row
+        # proposer case, append-only, re-run dedup, and USD denomination.
+        run: |
+          set -euo pipefail
+          if [ -f package.json ] && npm run | grep -qE '^  test$'; then
+            npm test
+          else
+            echo "No test script. Skipping."
+          fi
+
       - name: JavaScript must at least parse
         run: |
           set -euo pipefail
