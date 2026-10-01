@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:;">
+  <title>Throughput — for funsies</title>
+  <link rel="stylesheet" href="throughput.css">
+  <script type="module" src="./js/throughput.js"></script>
+</head>
+<body>
+  <main class="workbench" aria-labelledby="title">
+    <header class="intro">
+      <p class="eyebrow">an experimental new wave thing doer</p>
+      <h1 id="title">Throughput</h1>
+      <p class="lede">A small, simulated process for handling things that do not need handling.</p>
+    </header>
+
+    <section class="machine" aria-label="Simulated workbench">
+      <div class="machine-header">
+        <div>
+          <p class="label">CURRENT RUN</p>
+          <h2 id="current-task">Waking the workbench…</h2>
+        </div>
+        <span class="status" id="status" data-state="starting">STARTING</span>
+      </div>
+
+      <div class="progress-track" role="progressbar" aria-label="Current task progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span id="progress"></span>
+      </div>
+      <p class="progress-caption" id="progress-caption">Preparing an invented task.</p>
+
+      <div class="stats" aria-label="Run statistics">
+        <div><span class="label">COMPLETED</span><strong id="completed">0</strong></div>
+        <div><span class="label">IN QUEUE</span><strong id="queued">0</strong></div>
+        <div><span class="label">MODE</span><strong>SIMULATED</strong></div>
+      </div>
+
+      <div class="log-wrap">
+        <div class="log-heading">
+          <p class="label">PROCESS LOG</p>
+          <span class="pulse" aria-hidden="true"></span>
+        </div>
+        <ol class="log" id="log" aria-live="polite"></ol>
+      </div>
+    </section>
+
+    <footer>
+      <p>This is an invented process. Nothing important is waiting behind it.</p>
+    </footer>
+  </main>
+</body>
+</html>
