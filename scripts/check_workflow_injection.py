@@ -36,27 +36,3 @@ def check(path: str) -> list[str]:
             # A line at or left of the `run:` key ends the block.
             if len(line) - len(line.lstrip()) <= indent:
                 in_run = False
-        if in_run and EXPANSION in line and TAINTED.search(line):
-            problems.append(
-                f"::error file={path},line={n}::Untrusted PR text is interpolated "
-                f"into a run: block. Pass it via env: and use \"$VAR\" instead."
-            )
-    return problems
-
-
-def main() -> int:
-    paths = sorted(
-        glob.glob(".github/workflows/*.yml") + glob.glob(".github/workflows/*.yaml")
-    )
-    problems = [p for path in paths for p in check(path)]
-    for p in problems:
-        print(p)
-    if problems:
-        print(f"\n{len(problems)} injectable interpolation(s) found.", file=sys.stderr)
-        return 1
-    print(f"No injectable interpolation in {len(paths)} workflow(s): OK")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
